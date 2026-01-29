@@ -1,12 +1,12 @@
-import { Baby, RotateCcw } from "lucide-react";
+import { Baby, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type AppHeaderProps = {
-  onReset: () => void;
-  showReset: boolean;
+  onEditBirthDate: () => void;
+  showActions: boolean;
 };
 
-export default function AppHeader({ onReset, showReset }: AppHeaderProps) {
+export default function AppHeader({ onEditBirthDate, showActions }: AppHeaderProps) {
   return (
     <header className="w-full border-b border-border/50">
       <div className="container mx-auto flex items-center justify-between p-4">
@@ -15,13 +15,15 @@ export default function AppHeader({ onReset, showReset }: AppHeaderProps) {
             <Baby className="h-6 w-6" />
           </div>
           <h1 className="text-2xl font-headline font-bold text-foreground">
-            BabyCare Time
+            Babynum Time
           </h1>
         </div>
-        {showReset && (
-           <Button variant="ghost" size="icon" onClick={onReset} aria-label="Reset Data">
-             <RotateCcw className="h-4 w-4" />
-           </Button>
+        {showActions && (
+           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={onEditBirthDate} aria-label="Pengaturan">
+                <Settings className="h-4 w-4" />
+            </Button>
+           </div>
         )}
       </div>
     </header>

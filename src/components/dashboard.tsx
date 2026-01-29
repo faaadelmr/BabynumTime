@@ -1,19 +1,35 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { format, formatDistanceToNowStrict } from "date-fns";
-import { Clock, Target, Baby, Hourglass, Droplets, FlaskConical } from "lucide-react";
-import type { Feeding } from "@/lib/types";
+import { format, formatDistanceToNowStrict, isToday } from "date-fns";
+import { id } from 'date-fns/locale';
+import { Clock, Baby, Bean, Droplets, FlaskConical, History } from "lucide-react";
+import type { Feeding, Poop } from "@/lib/types";
 import {
   getAge,
   getAgeInMonths,
-  getDailyGuideline,
   predictNextFeeding,
-  getTotalVolumeToday,
+  getDailyFeedingRecommendation,
+  getDailyPoopRecommendation
 } from "@/lib/feeding-logic";
 import FeedingForm from "./feeding-form";
 import FeedingHistory from "./feeding-history";
+import PoopForm from "./poop-form";
+import PoopHistory from "./poop-history";
 import InfoCard from "./info-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface DashboardProps {
   birthDate: Date;
@@ -21,23 +37,30 @@ interface DashboardProps {
 
 export default function Dashboard({ birthDate }: DashboardProps) {
   const [feedings, setFeedings] = useState<Feeding[]>([]);
+  const [poops, setPoops] = useState<Poop[]>([]);
   const [isClient, setIsClient] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'feeding' | 'poop', id: string } | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const storedFeedings = localStorage.getItem("babyCareFeedings");
     if (storedFeedings) {
       setFeedings(JSON.parse(storedFeedings));
     }
+    const storedPoops = localStorage.getItem("babyCarePoops");
+    if (storedPoops) {
+      setPoops(JSON.parse(storedPoops));
+    }
     setIsClient(true);
-
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
-    return () => clearInterval(timer);
   }, []);
 
   const sortedFeedings = useMemo(() => {
     return [...feedings].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   }, [feedings]);
+
+  const sortedPoops = useMemo(() => {
+    return [...poops].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  }, [poops]);
 
   const addFeeding = (newFeeding: Omit<Feeding, "id" | "time"> & { time: Date }) => {
     const feedingWithId: Feeding = {
@@ -50,47 +73,147 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     localStorage.setItem("babyCareFeedings", JSON.stringify(updatedFeedings));
   };
   
+  const addPoop = (newPoop: Omit<Poop, "id" | "time"> & { time: Date }) => {
+    const poopWithId: Poop = {
+      ...newPoop,
+      id: new Date().toISOString() + Math.random(),
+      time: newPoop.time.toISOString(),
+      notes: newPoop.notes || "",
+    };
+    const updatedPoops = [poopWithId, ...poops];
+    setPoops(updatedPoops);
+    localStorage.setItem("babyCarePoops", JSON.stringify(updatedPoops));
+  };
+
+  const deleteFeeding = (id: string) => {
+    const updatedFeedings = feedings.filter(f => f.id !== id);
+    setFeedings(updatedFeedings);
+    localStorage.setItem("babyCareFeedings", JSON.stringify(updatedFeedings));
+    toast({ title: "Catatan minum dihapus." });
+  };
+
+  const deletePoop = (id: string) => {
+      const updatedPoops = poops.filter(p => p.id !== id);
+      setPoops(updatedPoops);
+      localStorage.setItem("babyCarePoops", JSON.stringify(updatedPoops));
+      toast({ title: "Catatan eek dihapus." });
+  };
+
+  const handleDeleteConfirm = () => {
+      if (!itemToDelete) return;
+
+      if (itemToDelete.type === 'feeding') {
+          deleteFeeding(itemToDelete.id);
+      } else {
+          deletePoop(itemToDelete.id);
+      }
+      setItemToDelete(null);
+  };
+
+
   const ageInMonths = getAgeInMonths(birthDate);
   const ageString = getAge(birthDate);
-  const dailyGuideline = getDailyGuideline(ageInMonths);
   const nextFeedingTime = predictNextFeeding(sortedFeedings, ageInMonths);
-  const totalVolumeToday = getTotalVolumeToday(sortedFeedings);
+
+  const feedingsToday = useMemo(() => sortedFeedings.filter(f => isToday(new Date(f.time))), [sortedFeedings]);
+  const totalFeedingToday = useMemo(() => feedingsToday.reduce((sum, f) => sum + f.quantity, 0), [feedingsToday]);
+  const feedingReco = getDailyFeedingRecommendation(ageInMonths);
+  
+  const poopsToday = useMemo(() => sortedPoops.filter(p => isToday(new Date(p.time))), [sortedPoops]);
+  const totalPoopsToday = poopsToday.length;
+  const poopReco = getDailyPoopRecommendation(ageInMonths);
 
   const lastFeeding = sortedFeedings[0];
   const lastFeedingIcon = lastFeeding?.type === 'breast' ? Droplets : FlaskConical;
+  const lastPoop = sortedPoops[0];
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <InfoCard icon={Baby} title="Baby's Age" value={ageString} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <InfoCard icon={Baby} title="Usia Bayi" value={ageString} />
         <InfoCard 
             icon={Clock} 
-            title="Next Feeding" 
-            value={nextFeedingTime ? format(nextFeedingTime, 'p') : "Log a feeding"}
-            description={nextFeedingTime ? `In ${formatDistanceToNowStrict(nextFeedingTime)}` : "No data yet"}
+            title="Minum Berikutnya" 
+            value={nextFeedingTime ? format(nextFeedingTime, 'p', { locale: id }) : "N/A"}
+            description={nextFeedingTime ? `Dalam ${formatDistanceToNowStrict(nextFeedingTime, { locale: id, addSuffix: false })}` : "Catat minum"}
         />
         <InfoCard 
           icon={lastFeedingIcon}
-          title="Last Feeding"
+          title="Terakhir Minum"
           value={lastFeeding ? `${lastFeeding.quantity} ml` : 'N/A'}
-          description={lastFeeding ? `${formatDistanceToNowStrict(new Date(lastFeeding.time))} ago` : 'Log first feeding'}
+          description={isClient ? `Hari ini: ${totalFeedingToday}ml / Rek. ${feedingReco.min}-${feedingReco.max}ml` : 'Memuat...'}
         />
         <InfoCard 
-          icon={Target} 
-          title="Today's Goal"
-          value={`${totalVolumeToday} / ${dailyGuideline.total}`}
-          description="Total daily intake"
+          icon={Bean}
+          title="Eek Terakhir"
+          value={lastPoop ? `${formatDistanceToNowStrict(new Date(lastPoop.time), { locale: id })} lalu` : 'N/A'}
+          description={isClient ? `Hari ini: ${totalPoopsToday}x / Rek. ${poopReco.min}-${poopReco.max}x` : 'Memuat...'}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-1">
-          <FeedingForm onAddFeeding={addFeeding} />
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="font-headline text-2xl">Catat Aktivitas</CardTitle>
+              <CardDescription>Rekam sesi pemberian minum atau eek baru.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="feeding">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="feeding">Minum</TabsTrigger>
+                  <TabsTrigger value="poop">Eek</TabsTrigger>
+                </TabsList>
+                <TabsContent value="feeding" className="pt-6">
+                  <FeedingForm onAddFeeding={addFeeding} />
+                </TabsContent>
+                <TabsContent value="poop" className="pt-6">
+                  <PoopForm onAddPoop={addPoop} />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </div>
         <div className="lg:col-span-2">
-          <FeedingHistory feedings={sortedFeedings} />
+           <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="font-headline text-2xl flex items-center gap-2">
+                  <History className="h-6 w-6" /> Riwayat Aktivitas
+              </CardTitle>
+              <CardDescription>Catatan aktivitas bayi Anda baru-baru ini.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="feeding">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="feeding">Riwayat Minum</TabsTrigger>
+                    <TabsTrigger value="poop">Riwayat Eek</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="feeding" className="pt-2">
+                    <FeedingHistory feedings={sortedFeedings} onDelete={(id) => setItemToDelete({ type: 'feeding', id })} />
+                  </TabsContent>
+                  <TabsContent value="poop" className="pt-2">
+                    <PoopHistory poops={sortedPoops} onDelete={(id) => setItemToDelete({ type: 'poop', id })} />
+                  </TabsContent>
+                </Tabs>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={() => setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini akan menghapus data riwayat secara permanen dan tidak dapat dipulihkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>Ya, Hapus</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

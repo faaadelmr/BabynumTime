@@ -1,8 +1,9 @@
-import { differenceInDays, differenceInMonths, add, formatDistanceToNow } from 'date-fns';
+import { differenceInMonths, add, formatDistanceToNow } from 'date-fns';
+import { id } from 'date-fns/locale';
 import type { Feeding } from '@/lib/types';
 
 export const getAge = (birthDate: Date): string => {
-  return formatDistanceToNow(birthDate, { addSuffix: true }).replace('about ', '');
+  return formatDistanceToNow(birthDate, { addSuffix: true, locale: id }).replace('sekitar ', '');
 };
 
 export const getAgeInMonths = (birthDate: Date): number => {
@@ -27,47 +28,25 @@ export const predictNextFeeding = (feedings: Feeding[], ageInMonths: number): Da
   return add(lastFeedingTime, { hours: hoursToAdd });
 };
 
-export const getDailyGuideline = (ageInMonths: number): { quantity: string, frequency: string, total: string } => {
-  if (ageInMonths < 1) {
-    return { 
-      quantity: "60-90 ml", 
-      frequency: "every 2-3 hours",
-      total: "480-720 ml" 
-    };
-  }
-  if (ageInMonths < 2) {
-    return { 
-      quantity: "90-120 ml", 
-      frequency: "every 3-4 hours",
-      total: "720-960 ml"
-    };
-  }
-  if (ageInMonths < 4) {
-    return {
-      quantity: "120-180 ml",
-      frequency: "every 3-4 hours",
-      total: "960-1440 ml"
-    };
-  }
-  if (ageInMonths < 6) {
-    return {
-      quantity: "180-240 ml",
-      frequency: "every 4-5 hours",
-      total: "1080-1440 ml"
-    };
-  }
-  return {
-    quantity: "240 ml",
-    frequency: "every 4-6 hours",
-    total: "Up to 1000 ml+"
-  };
+export const getDailyFeedingRecommendation = (ageInMonths: number): { min: number, max: number } => {
+    if (ageInMonths < 1) { // 0-1 bulan
+        return { min: 480, max: 720 };
+    }
+    if (ageInMonths < 3) { // 1-3 bulan
+        return { min: 700, max: 950 };
+    }
+    if (ageInMonths < 6) { // 3-6 bulan
+        return { min: 800, max: 1000 };
+    }
+    return { min: 700, max: 900 }; // 6+ bulan (dengan asumsi sudah ada makanan padat)
 };
 
-export const getTotalVolumeToday = (feedings: Feeding[]): number => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return feedings
-    .filter(f => new Date(f.time) >= today)
-    .reduce((total, f) => total + f.quantity, 0);
+export const getDailyPoopRecommendation = (ageInMonths: number): { min: number, max: number } => {
+    if (ageInMonths < 1) { // 0-1 bulan
+        return { min: 3, max: 5 };
+    }
+    if (ageInMonths < 2) { // 1-2 bulan
+        return { min: 2, max: 4 };
+    }
+    return { min: 1, max: 3 }; // 2+ bulan
 };

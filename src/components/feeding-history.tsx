@@ -1,12 +1,6 @@
 import { format } from "date-fns";
+import { id } from 'date-fns/locale';
 import type { Feeding } from "@/lib/types";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -17,66 +11,64 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Droplets, FlaskConical, History } from "lucide-react";
+import { Droplets, FlaskConical, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface FeedingHistoryProps {
   feedings: Feeding[];
+  onDelete: (id: string) => void;
 }
 
-export default function FeedingHistory({ feedings }: FeedingHistoryProps) {
+export default function FeedingHistory({ feedings, onDelete }: FeedingHistoryProps) {
   return (
-    <Card className="shadow-lg">
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl flex items-center gap-2">
-            <History className="h-6 w-6" /> Feeding History
-        </CardTitle>
-        <CardDescription>A log of your baby's recent feedings.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[350px] rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Quantity</TableHead>
+    <ScrollArea className="h-[350px] rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Waktu</TableHead>
+            <TableHead>Jenis</TableHead>
+            <TableHead className="text-right">Kuantitas</TableHead>
+            <TableHead className="text-center">Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {feedings.length > 0 ? (
+            feedings.map((feeding) => (
+              <TableRow key={feeding.id}>
+                <TableCell className="font-medium">
+                  {format(new Date(feeding.time), "p, d MMM", { locale: id })}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className="flex items-center gap-1.5 w-fit">
+                    {feeding.type === 'breast' 
+                      ? <Droplets className="h-3 w-3" /> 
+                      : <FlaskConical className="h-3 w-3" />
+                    }
+                    {feeding.type === "breast" ? "ASI" : "Susu Formula"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  {feeding.quantity} ml
+                </TableCell>
+                <TableCell className="text-center">
+                  <Button variant="ghost" size="icon" onClick={() => onDelete(feeding.id)} aria-label="Hapus">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {feedings.length > 0 ? (
-                feedings.map((feeding) => (
-                  <TableRow key={feeding.id}>
-                    <TableCell className="font-medium">
-                      {format(new Date(feeding.time), "p, MMM d")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="flex items-center gap-1.5 w-fit">
-                        {feeding.type === 'breast' 
-                          ? <Droplets className="h-3 w-3" /> 
-                          : <FlaskConical className="h-3 w-3" />
-                        }
-                        {feeding.type === "breast" ? "Breast Milk" : "Formula"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {feeding.quantity} ml
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    No feedings logged yet.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell
+                colSpan={4}
+                className="h-24 text-center text-muted-foreground"
+              >
+                Belum ada catatan pemberian minum.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </ScrollArea>
   );
 }

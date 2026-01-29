@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { format, formatDistanceToNowStrict, isToday } from "date-fns";
 import { id } from 'date-fns/locale';
 import { Clock, Baby, Bean, Droplets, FlaskConical, History } from "lucide-react";
-import type { Feeding, Poop } from "@/lib/types";
+import type { Feeding, Poop, CryAnalysis, CryAnalysisResult } from "@/lib/types";
 import {
   getAge,
   getAgeInMonths,
@@ -30,6 +30,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import CryAnalyzerForm from "./cry-analyzer-form";
+import CryHistory from "./cry-history";
 
 interface DashboardProps {
   birthDate: Date;
@@ -38,8 +40,9 @@ interface DashboardProps {
 export default function Dashboard({ birthDate }: DashboardProps) {
   const [feedings, setFeedings] = useState<Feeding[]>([]);
   const [poops, setPoops] = useState<Poop[]>([]);
+  const [cryAnalyses, setCryAnalyses] = useState<CryAnalysis[]>([]);
   const [isClient, setIsClient] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ type: 'feeding' | 'poop', id: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'feeding' | 'poop' | 'cry', id: string } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -51,6 +54,10 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     if (storedPoops) {
       setPoops(JSON.parse(storedPoops));
     }
+    const storedCryAnalyses = localStorage.getItem("babyCareCryAnalyses");
+    if (storedCryAnalyses) {
+      setCryAnalyses(JSON.parse(storedCryAnalyses));
+    }
     setIsClient(true);
   }, []);
 
@@ -61,6 +68,11 @@ export default function Dashboard({ birthDate }: DashboardProps) {
   const sortedPoops = useMemo(() => {
     return [...poops].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   }, [poops]);
+
+  const sortedCryAnalyses = useMemo(() => {
+    return [...cryAnalyses].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  }, [cryAnalyses]);
+
 
   const addFeeding = (newFeeding: Omit<Feeding, "id" | "time"> & { time: Date }) => {
     const feedingWithId: Feeding = {
@@ -85,6 +97,19 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     localStorage.setItem("babyCarePoops", JSON.stringify(updatedPoops));
   };
 
+  const addCryAnalysis = (newAnalysis: { result: CryAnalysisResult, time: Date }) => {
+    const analysisWithId: CryAnalysis = {
+      ...newAnalysis,
+      id: new Date().toISOString() + Math.random(),
+      time: newAnalysis.time.toISOString(),
+    };
+    const updatedAnalyses = [analysisWithId, ...cryAnalyses];
+    setCryAnalyses(updatedAnalyses);
+    localStorage.setItem("babyCareCryAnalyses", JSON.stringify(updatedAnalyses));
+    toast({ title: "Analisis tangisan disimpan." });
+  };
+
+
   const deleteFeeding = (id: string) => {
     const updatedFeedings = feedings.filter(f => f.id !== id);
     setFeedings(updatedFeedings);
@@ -99,13 +124,22 @@ export default function Dashboard({ birthDate }: DashboardProps) {
       toast({ title: "Catatan eek dihapus." });
   };
 
+  const deleteCryAnalysis = (id: string) => {
+    const updatedAnalyses = cryAnalyses.filter(p => p.id !== id);
+    setCryAnalyses(updatedAnalyses);
+    localStorage.setItem("babyCareCryAnalyses", JSON.stringify(updatedAnalyses));
+    toast({ title: "Catatan analisis dihapus." });
+  };
+
   const handleDeleteConfirm = () => {
       if (!itemToDelete) return;
 
       if (itemToDelete.type === 'feeding') {
           deleteFeeding(itemToDelete.id);
-      } else {
+      } else if (itemToDelete.type === 'poop'){
           deletePoop(itemToDelete.id);
+      } else {
+          deleteCryAnalysis(itemToDelete.id);
       }
       setItemToDelete(null);
   };
@@ -156,19 +190,23 @@ export default function Dashboard({ birthDate }: DashboardProps) {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline text-2xl">Catat Aktivitas</CardTitle>
-              <CardDescription>Rekam sesi pemberian minum atau eek baru.</CardDescription>
+              <CardDescription>Rekam sesi pemberian minum, eek, atau analisis tangisan.</CardDescription>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="feeding">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="feeding">Minum</TabsTrigger>
                   <TabsTrigger value="poop">Eek</TabsTrigger>
+                  <TabsTrigger value="cry">AI Analisis</TabsTrigger>
                 </TabsList>
                 <TabsContent value="feeding" className="pt-6">
                   <FeedingForm onAddFeeding={addFeeding} />
                 </TabsContent>
                 <TabsContent value="poop" className="pt-6">
                   <PoopForm onAddPoop={addPoop} />
+                </TabsContent>
+                <TabsContent value="cry" className="pt-6">
+                  <CryAnalyzerForm onAddAnalysis={addCryAnalysis} />
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -184,15 +222,19 @@ export default function Dashboard({ birthDate }: DashboardProps) {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="feeding">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="feeding">Riwayat Minum</TabsTrigger>
                     <TabsTrigger value="poop">Riwayat Eek</TabsTrigger>
+                    <TabsTrigger value="cry">Riwayat Analisis</TabsTrigger>
                   </TabsList>
                   <TabsContent value="feeding" className="pt-2">
                     <FeedingHistory feedings={sortedFeedings} onDelete={(id) => setItemToDelete({ type: 'feeding', id })} />
                   </TabsContent>
                   <TabsContent value="poop" className="pt-2">
                     <PoopHistory poops={sortedPoops} onDelete={(id) => setItemToDelete({ type: 'poop', id })} />
+                  </TabsContent>
+                   <TabsContent value="cry" className="pt-2">
+                    <CryHistory analyses={sortedCryAnalyses} onDelete={(id) => setItemToDelete({ type: 'cry', id })} />
                   </TabsContent>
                 </Tabs>
             </CardContent>

@@ -28,18 +28,19 @@ interface CryHistoryProps {
   onDelete: (id: string) => void;
 }
 
-const reasonLabels: { [key in keyof CryAnalysisResult]: string } = {
-  lapar: 'Lapar',
-  mengantuk: 'Mengantuk',
-  tidakNyaman: 'Tidak Nyaman',
-  sakit: 'Sakit',
-  bosan: 'Bosan',
+// Dunstan Baby Language labels
+const reasonLabels: { [key in keyof CryAnalysisResult]: { label: string; sound: string } } = {
+  lapar: { label: 'Lapar', sound: 'NEH' },
+  mengantuk: { label: 'Mengantuk', sound: 'OWH' },
+  sendawa: { label: 'Perlu Sendawa', sound: 'EH' },
+  perutKembung: { label: 'Perut Kembung', sound: 'EAIRH' },
+  tidakNyaman: { label: 'Tidak Nyaman', sound: 'HEH' },
 };
 
-const getTopReason = (result: CryAnalysisResult): string => {
+const getTopReason = (result: CryAnalysisResult): { label: string; sound: string } => {
   const top = Object.entries(result)
     .sort(([, a], [, b]) => b - a)[0];
-  return top ? reasonLabels[top[0] as keyof CryAnalysisResult] : "Tidak diketahui";
+  return top ? reasonLabels[top[0] as keyof CryAnalysisResult] : { label: "Tidak diketahui", sound: "?" };
 };
 
 
@@ -61,54 +62,69 @@ export default function CryHistory({ analyses, onDelete }: CryHistoryProps) {
               const sortedResults = Object.entries(analysis.result)
                 .map(([key, value]) => ({ reason: key as keyof CryAnalysisResult, probability: value }))
                 .sort((a, b) => b.probability - a.probability);
+              const topReason = getTopReason(analysis.result);
 
               return (
-              <TableRow key={analysis.id}>
-                <TableCell className="font-medium">
-                  {format(new Date(analysis.time), "p, d MMM", { locale: id })}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{getTopReason(analysis.result)}</Badge>
-                </TableCell>
-                <TableCell className="text-center">
-                   <Dialog>
+                <TableRow key={analysis.id}>
+                  <TableCell className="font-medium">
+                    {format(new Date(analysis.time), "p, d MMM", { locale: id })}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                      <span>{topReason.label}</span>
+                      <span className="text-xs opacity-70">({topReason.sound})</span>
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="ghost" size="icon">
-                           <Info className="h-4 w-4" />
+                          <Info className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-md">
                         <DialogHeader>
-                          <DialogTitle>Detail Analisis</DialogTitle>
-                           <DialogDescription>
-                             {format(new Date(analysis.time), "p, d MMMM yyyy", { locale: id })}
-                           </DialogDescription>
+                          <DialogTitle>Detail Analisis (Metode Dunstan)</DialogTitle>
+                          <DialogDescription>
+                            {format(new Date(analysis.time), "p, d MMMM yyyy", { locale: id })}
+                            {analysis.detectedSound && (
+                              <span className="ml-2 text-primary font-medium">
+                                • Suara: {analysis.detectedSound}
+                              </span>
+                            )}
+                          </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 pt-4">
-                            {sortedResults.filter(r => r.probability > 0).map(({ reason, probability }) => (
-                                <div key={reason} className="flex items-center gap-4">
-                                    <span className="w-24 text-sm font-medium text-muted-foreground">{reasonLabels[reason]}</span>
-                                    <div className="flex-1 bg-muted rounded-full h-4 overflow-hidden">
-                                        <div 
-                                            className="bg-primary h-full rounded-full flex items-center justify-end pr-2 text-primary-foreground text-xs"
-                                            style={{ width: `${probability}%` }}
-                                        >
-                                        </div>
-                                    </div>
-                                    <span className="w-10 text-sm font-bold">{probability}%</span>
-                                </div>
-                            ))}
+                          {sortedResults.filter(r => r.probability > 0).map(({ reason, probability }) => (
+                            <div key={reason} className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium">
+                                  {reasonLabels[reason].label}
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    ({reasonLabels[reason].sound})
+                                  </span>
+                                </span>
+                                <span className="font-bold">{probability}%</span>
+                              </div>
+                              <div className="flex-1 bg-muted rounded-full h-3 overflow-hidden">
+                                <div
+                                  className="bg-primary h-full rounded-full"
+                                  style={{ width: `${probability}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </DialogContent>
                     </Dialog>
-                </TableCell>
-                <TableCell className="text-center">
-                  <Button variant="ghost" size="icon" onClick={() => onDelete(analysis.id)} aria-label="Hapus">
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-             );
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(analysis.id)} aria-label="Hapus">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
             })
           ) : (
             <TableRow>

@@ -1,21 +1,21 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { format, formatDistanceToNowStrict, isToday } from "date-fns";
+import { format, formatDistanceToNowStrict, isToday, subDays, isAfter } from "date-fns";
 import { id } from 'date-fns/locale';
-import { Clock, Baby, Bean, Droplets, FlaskConical, History } from "lucide-react";
-import type { Feeding, Poop, CryAnalysis, CryAnalysisResult } from "@/lib/types";
+import { Clock, Baby, Shirt, Droplets, FlaskConical, History } from "lucide-react";
+import type { Feeding, CryAnalysis, CryAnalysisResult, DiaperChange } from "@/lib/types";
 import {
   getAge,
   getAgeInMonths,
   predictNextFeeding,
   getDailyFeedingRecommendation,
-  getDailyPoopRecommendation
+  getWeeklyPoopRecommendation,
 } from "@/lib/feeding-logic";
 import FeedingForm from "./feeding-form";
 import FeedingHistory from "./feeding-history";
-import PoopForm from "./poop-form";
-import PoopHistory from "./poop-history";
+import DiaperForm from "./diaper-form";
+import DiaperHistory from "./diaper-history";
 import InfoCard from "./info-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -39,10 +39,10 @@ interface DashboardProps {
 
 export default function Dashboard({ birthDate }: DashboardProps) {
   const [feedings, setFeedings] = useState<Feeding[]>([]);
-  const [poops, setPoops] = useState<Poop[]>([]);
   const [cryAnalyses, setCryAnalyses] = useState<CryAnalysis[]>([]);
+  const [diapers, setDiapers] = useState<DiaperChange[]>([]);
   const [isClient, setIsClient] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ type: 'feeding' | 'poop' | 'cry', id: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'feeding' | 'cry' | 'diaper', id: string } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -50,13 +50,13 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     if (storedFeedings) {
       setFeedings(JSON.parse(storedFeedings));
     }
-    const storedPoops = localStorage.getItem("babyCarePoops");
-    if (storedPoops) {
-      setPoops(JSON.parse(storedPoops));
-    }
     const storedCryAnalyses = localStorage.getItem("babyCareCryAnalyses");
     if (storedCryAnalyses) {
       setCryAnalyses(JSON.parse(storedCryAnalyses));
+    }
+    const storedDiapers = localStorage.getItem("babyCareDiapers");
+    if (storedDiapers) {
+      setDiapers(JSON.parse(storedDiapers));
     }
     setIsClient(true);
   }, []);
@@ -65,14 +65,13 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     return [...feedings].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   }, [feedings]);
 
-  const sortedPoops = useMemo(() => {
-    return [...poops].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-  }, [poops]);
-
   const sortedCryAnalyses = useMemo(() => {
     return [...cryAnalyses].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   }, [cryAnalyses]);
 
+  const sortedDiapers = useMemo(() => {
+    return [...diapers].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  }, [diapers]);
 
   const addFeeding = (newFeeding: Omit<Feeding, "id" | "time"> & { time: Date }) => {
     const feedingWithId: Feeding = {
@@ -83,18 +82,6 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     const updatedFeedings = [feedingWithId, ...feedings];
     setFeedings(updatedFeedings);
     localStorage.setItem("babyCareFeedings", JSON.stringify(updatedFeedings));
-  };
-
-  const addPoop = (newPoop: Omit<Poop, "id" | "time"> & { time: Date }) => {
-    const poopWithId: Poop = {
-      ...newPoop,
-      id: new Date().toISOString() + Math.random(),
-      time: newPoop.time.toISOString(),
-      notes: newPoop.notes || "",
-    };
-    const updatedPoops = [poopWithId, ...poops];
-    setPoops(updatedPoops);
-    localStorage.setItem("babyCarePoops", JSON.stringify(updatedPoops));
   };
 
   const addCryAnalysis = (newAnalysis: { result: CryAnalysisResult, time: Date, detectedSound?: string }) => {
@@ -109,6 +96,16 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     localStorage.setItem("babyCareCryAnalyses", JSON.stringify(updatedAnalyses));
   };
 
+  const addDiaper = (newDiaper: Omit<DiaperChange, "id" | "time"> & { time: Date }) => {
+    const diaperWithId: DiaperChange = {
+      ...newDiaper,
+      id: new Date().toISOString() + Math.random(),
+      time: newDiaper.time.toISOString(),
+    };
+    const updatedDiapers = [diaperWithId, ...diapers];
+    setDiapers(updatedDiapers);
+    localStorage.setItem("babyCareDiapers", JSON.stringify(updatedDiapers));
+  };
 
   const deleteFeeding = (id: string) => {
     const updatedFeedings = feedings.filter(f => f.id !== id);
@@ -117,18 +114,18 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     toast({ title: "Catatan minum dihapus." });
   };
 
-  const deletePoop = (id: string) => {
-    const updatedPoops = poops.filter(p => p.id !== id);
-    setPoops(updatedPoops);
-    localStorage.setItem("babyCarePoops", JSON.stringify(updatedPoops));
-    toast({ title: "Catatan eek dihapus." });
-  };
-
   const deleteCryAnalysis = (id: string) => {
-    const updatedAnalyses = cryAnalyses.filter(p => p.id !== id);
+    const updatedAnalyses = cryAnalyses.filter(c => c.id !== id);
     setCryAnalyses(updatedAnalyses);
     localStorage.setItem("babyCareCryAnalyses", JSON.stringify(updatedAnalyses));
     toast({ title: "Catatan analisis dihapus." });
+  };
+
+  const deleteDiaper = (id: string) => {
+    const updatedDiapers = diapers.filter(d => d.id !== id);
+    setDiapers(updatedDiapers);
+    localStorage.setItem("babyCareDiapers", JSON.stringify(updatedDiapers));
+    toast({ title: "Catatan pergantian popok dihapus." });
   };
 
   const handleDeleteConfirm = () => {
@@ -136,14 +133,13 @@ export default function Dashboard({ birthDate }: DashboardProps) {
 
     if (itemToDelete.type === 'feeding') {
       deleteFeeding(itemToDelete.id);
-    } else if (itemToDelete.type === 'poop') {
-      deletePoop(itemToDelete.id);
-    } else {
+    } else if (itemToDelete.type === 'cry') {
       deleteCryAnalysis(itemToDelete.id);
+    } else {
+      deleteDiaper(itemToDelete.id);
     }
     setItemToDelete(null);
   };
-
 
   const ageInMonths = getAgeInMonths(birthDate);
   const ageString = getAge(birthDate);
@@ -153,13 +149,23 @@ export default function Dashboard({ birthDate }: DashboardProps) {
   const totalFeedingToday = useMemo(() => feedingsToday.reduce((sum, f) => sum + f.quantity, 0), [feedingsToday]);
   const feedingReco = getDailyFeedingRecommendation(ageInMonths);
 
-  const poopsToday = useMemo(() => sortedPoops.filter(p => isToday(new Date(p.time))), [sortedPoops]);
-  const totalPoopsToday = poopsToday.length;
-  const poopReco = getDailyPoopRecommendation(ageInMonths);
+  // Diaper stats
+  const diapersToday = useMemo(() => sortedDiapers.filter(d => isToday(new Date(d.time))), [sortedDiapers]);
+  const totalDiapersToday = diapersToday.length;
+  const lastDiaper = sortedDiapers[0];
+
+  // Weekly poop (BAB) stats - count only 'kotor' or 'keduanya' types
+  const oneWeekAgo = subDays(new Date(), 7);
+  const poopsThisWeek = useMemo(() =>
+    sortedDiapers.filter(d =>
+      (d.type === 'kotor' || d.type === 'keduanya') &&
+      isAfter(new Date(d.time), oneWeekAgo)
+    ), [sortedDiapers, oneWeekAgo]);
+  const totalPoopsThisWeek = poopsThisWeek.length;
+  const weeklyPoopReco = getWeeklyPoopRecommendation(ageInMonths);
 
   const lastFeeding = sortedFeedings[0];
   const lastFeedingIcon = lastFeeding?.type === 'breast' ? Droplets : FlaskConical;
-  const lastPoop = sortedPoops[0];
 
   return (
     <div className="space-y-8">
@@ -178,10 +184,10 @@ export default function Dashboard({ birthDate }: DashboardProps) {
           description={isClient ? `Hari ini: ${totalFeedingToday}ml / Rek. ${feedingReco.min}-${feedingReco.max}ml` : 'Memuat...'}
         />
         <InfoCard
-          icon={Bean}
-          title="Eek Terakhir"
-          value={lastPoop ? `${formatDistanceToNowStrict(new Date(lastPoop.time), { locale: id })} lalu` : 'N/A'}
-          description={isClient ? `Hari ini: ${totalPoopsToday}x / Rek. ${poopReco.min}-${poopReco.max}x` : 'Memuat...'}
+          icon={Shirt}
+          title="Ganti Popok"
+          value={isClient ? `${totalDiapersToday}x hari ini` : 'Memuat...'}
+          description={isClient ? `BAB minggu ini: ${totalPoopsThisWeek}x (Rek. ${weeklyPoopReco.min}-${weeklyPoopReco.max}x)` : 'Memuat...'}
         />
       </div>
 
@@ -190,20 +196,20 @@ export default function Dashboard({ birthDate }: DashboardProps) {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline text-2xl">Catat Aktivitas</CardTitle>
-              <CardDescription>Rekam sesi pemberian minum, eek, atau analisis tangisan.</CardDescription>
+              <CardDescription>Rekam sesi pemberian minum, popok, atau analisis tangisan.</CardDescription>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="feeding">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="feeding">Minum</TabsTrigger>
-                  <TabsTrigger value="poop">Eek</TabsTrigger>
-                  <TabsTrigger value="cry">AI Analisis</TabsTrigger>
+                  <TabsTrigger value="diaper">Popok</TabsTrigger>
+                  <TabsTrigger value="cry">AI</TabsTrigger>
                 </TabsList>
                 <TabsContent value="feeding" className="pt-6">
                   <FeedingForm onAddFeeding={addFeeding} />
                 </TabsContent>
-                <TabsContent value="poop" className="pt-6">
-                  <PoopForm onAddPoop={addPoop} />
+                <TabsContent value="diaper" className="pt-6">
+                  <DiaperForm onAddDiaper={addDiaper} />
                 </TabsContent>
                 <TabsContent value="cry" className="pt-6">
                   <CryAnalyzerForm onAddAnalysis={addCryAnalysis} />
@@ -223,15 +229,15 @@ export default function Dashboard({ birthDate }: DashboardProps) {
             <CardContent>
               <Tabs defaultValue="feeding">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="feeding">Riwayat Minum</TabsTrigger>
-                  <TabsTrigger value="poop">Riwayat Eek</TabsTrigger>
-                  <TabsTrigger value="cry">Riwayat Analisis</TabsTrigger>
+                  <TabsTrigger value="feeding">Minum</TabsTrigger>
+                  <TabsTrigger value="diaper">Popok</TabsTrigger>
+                  <TabsTrigger value="cry">Analisis</TabsTrigger>
                 </TabsList>
                 <TabsContent value="feeding" className="pt-2">
                   <FeedingHistory feedings={sortedFeedings} onDelete={(id) => setItemToDelete({ type: 'feeding', id })} />
                 </TabsContent>
-                <TabsContent value="poop" className="pt-2">
-                  <PoopHistory poops={sortedPoops} onDelete={(id) => setItemToDelete({ type: 'poop', id })} />
+                <TabsContent value="diaper" className="pt-2">
+                  <DiaperHistory diapers={sortedDiapers} onDelete={(id) => setItemToDelete({ type: 'diaper', id })} />
                 </TabsContent>
                 <TabsContent value="cry" className="pt-2">
                   <CryHistory analyses={sortedCryAnalyses} onDelete={(id) => setItemToDelete({ type: 'cry', id })} />

@@ -28,3 +28,13 @@ export interface CryAnalysis {
   result: CryAnalysisResult;
   detectedSound?: string; // Dominant Dunstan sound detected
 }
+
+// Diaper Change tracking
+export interface DiaperChange {
+  id: string;
+  time: string; // ISO string
+  type: 'basah' | 'kotor' | 'keduanya'; // wet, dirty, or both
+  poopType?: 'biasa' | 'cair' | 'keras'; // jenis BAB jika ada
+  notes?: string;
+  image?: string; // Data URI of the image (untuk BAB)
+}

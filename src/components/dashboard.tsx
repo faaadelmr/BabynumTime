@@ -35,9 +35,10 @@ import CryHistory from "./cry-history";
 
 interface DashboardProps {
   birthDate: Date;
+  onDataChange?: () => void;
 }
 
-export default function Dashboard({ birthDate }: DashboardProps) {
+export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
   const [feedings, setFeedings] = useState<Feeding[]>([]);
   const [cryAnalyses, setCryAnalyses] = useState<CryAnalysis[]>([]);
   const [diapers, setDiapers] = useState<DiaperChange[]>([]);
@@ -82,6 +83,7 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     const updatedFeedings = [feedingWithId, ...feedings];
     setFeedings(updatedFeedings);
     localStorage.setItem("babyCareFeedings", JSON.stringify(updatedFeedings));
+    onDataChange?.();
   };
 
   const addCryAnalysis = (newAnalysis: { result: CryAnalysisResult, time: Date, detectedSound?: string }) => {
@@ -94,6 +96,7 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     const updatedAnalyses = [analysisWithId, ...cryAnalyses];
     setCryAnalyses(updatedAnalyses);
     localStorage.setItem("babyCareCryAnalyses", JSON.stringify(updatedAnalyses));
+    onDataChange?.();
   };
 
   const addDiaper = (newDiaper: Omit<DiaperChange, "id" | "time"> & { time: Date }) => {
@@ -105,12 +108,14 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     const updatedDiapers = [diaperWithId, ...diapers];
     setDiapers(updatedDiapers);
     localStorage.setItem("babyCareDiapers", JSON.stringify(updatedDiapers));
+    onDataChange?.();
   };
 
   const deleteFeeding = (id: string) => {
     const updatedFeedings = feedings.filter(f => f.id !== id);
     setFeedings(updatedFeedings);
     localStorage.setItem("babyCareFeedings", JSON.stringify(updatedFeedings));
+    onDataChange?.();
     toast({ title: "Catatan minum dihapus." });
   };
 
@@ -118,6 +123,7 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     const updatedAnalyses = cryAnalyses.filter(c => c.id !== id);
     setCryAnalyses(updatedAnalyses);
     localStorage.setItem("babyCareCryAnalyses", JSON.stringify(updatedAnalyses));
+    onDataChange?.();
     toast({ title: "Catatan analisis dihapus." });
   };
 
@@ -125,6 +131,7 @@ export default function Dashboard({ birthDate }: DashboardProps) {
     const updatedDiapers = diapers.filter(d => d.id !== id);
     setDiapers(updatedDiapers);
     localStorage.setItem("babyCareDiapers", JSON.stringify(updatedDiapers));
+    onDataChange?.();
     toast({ title: "Catatan pergantian popok dihapus." });
   };
 

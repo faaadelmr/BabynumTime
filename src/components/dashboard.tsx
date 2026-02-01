@@ -17,6 +17,7 @@ import FeedingHistory from "./feeding-history";
 import DiaperForm from "./diaper-form";
 import DiaperHistory from "./diaper-history";
 import InfoCard from "./info-card";
+import FeedingCountdown from "./feeding-countdown";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import {
@@ -178,12 +179,7 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
     <div className="space-y-8">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <InfoCard icon={Baby} title="Usia Bayi" value={ageString} />
-        <InfoCard
-          icon={Clock}
-          title="Minum Berikutnya"
-          value={nextFeedingTime ? format(nextFeedingTime, 'p', { locale: id }) : "N/A"}
-          description={nextFeedingTime ? `Dalam ${formatDistanceToNowStrict(nextFeedingTime, { locale: id, addSuffix: false })}` : "Catat minum"}
-        />
+        <FeedingCountdown nextFeedingTime={nextFeedingTime} />
         <InfoCard
           icon={lastFeedingIcon}
           title="Terakhir Minum"

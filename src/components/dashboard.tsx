@@ -209,7 +209,7 @@ export default function Dashboard({ birthDate }: DashboardProps) {
                   <FeedingForm onAddFeeding={addFeeding} />
                 </TabsContent>
                 <TabsContent value="diaper" className="pt-6">
-                  <DiaperForm onAddDiaper={addDiaper} />
+                  <DiaperForm onAddDiaper={addDiaper} babyAgeInMonths={ageInMonths} />
                 </TabsContent>
                 <TabsContent value="cry" className="pt-6">
                   <CryAnalyzerForm onAddAnalysis={addCryAnalysis} />

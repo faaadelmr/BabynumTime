@@ -37,4 +37,15 @@ export interface DiaperChange {
   poopType?: 'biasa' | 'cair' | 'keras'; // jenis BAB jika ada
   notes?: string;
   image?: string; // Data URI of the image (untuk BAB)
+  aiAnalysis?: PoopAIAnalysis; // AI analysis result
+}
+
+// AI Analysis result for poop
+export interface PoopAIAnalysis {
+  color: string; // warna feses
+  consistency: string; // tekstur/konsistensi
+  isNormal: boolean; // apakah normal untuk usia bayi
+  description: string; // deskripsi tentang feses
+  warning?: string; // peringatan jika ada yang tidak normal
+  advice: string; // saran untuk orang tua
 }

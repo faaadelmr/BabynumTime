@@ -1,15 +1,19 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { Droplet, CircleDot, Layers, Camera, X } from 'lucide-react';
+import { Droplet, CircleDot, Layers, Camera, X, Sparkles, AlertTriangle, Loader2, CheckCircle, PenLine, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import type { DiaperChange } from '@/lib/types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { DiaperChange, PoopAIAnalysis } from '@/lib/types';
+import { analyzePoopWithAI } from '@/ai/flows/analyze-poop-flow';
 
 interface DiaperFormProps {
     onAddDiaper: (diaper: Omit<DiaperChange, 'id' | 'time'> & { time: Date }) => void;
+    babyAgeInMonths: number;
 }
 
 const diaperTypes: { value: DiaperChange['type']; label: string; icon: React.ReactNode; description: string }[] = [
@@ -18,18 +22,41 @@ const diaperTypes: { value: DiaperChange['type']; label: string; icon: React.Rea
     { value: 'keduanya', label: 'Keduanya', icon: <Layers className="h-5 w-5" />, description: 'Pipis + BAB' },
 ];
 
-const poopTypes: { value: NonNullable<DiaperChange['poopType']>; label: string }[] = [
-    { value: 'biasa', label: 'Normal' },
-    { value: 'cair', label: 'Cair' },
-    { value: 'keras', label: 'Keras' },
+const colorOptions = [
+    { value: 'kuning', label: 'Kuning' },
+    { value: 'kuning_keemasan', label: 'Kuning Keemasan' },
+    { value: 'hijau', label: 'Hijau' },
+    { value: 'coklat', label: 'Coklat' },
+    { value: 'hitam', label: 'Hitam' },
+    { value: 'merah', label: 'Merah/Berdarah' },
+    { value: 'putih', label: 'Putih/Pucat' },
 ];
 
-export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
+const textureOptions = [
+    { value: 'lembek', label: 'Lembek' },
+    { value: 'berbiji', label: 'Berbiji' },
+    { value: 'cair', label: 'Cair/Encer' },
+    { value: 'keras', label: 'Keras' },
+    { value: 'padat', label: 'Padat' },
+    { value: 'berlendir', label: 'Berlendir' },
+];
+
+type InputMode = 'manual' | 'ai';
+
+export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormProps) {
     const { toast } = useToast();
     const [selectedType, setSelectedType] = useState<DiaperChange['type']>('basah');
-    const [poopType, setPoopType] = useState<DiaperChange['poopType']>('biasa');
+    const [inputMode, setInputMode] = useState<InputMode>('manual');
+
+    // Manual input
+    const [manualColor, setManualColor] = useState('kuning');
+    const [manualTexture, setManualTexture] = useState('lembek');
     const [notes, setNotes] = useState('');
+
+    // AI Analysis
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [aiAnalysis, setAiAnalysis] = useState<PoopAIAnalysis | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const showPoopOptions = selectedType === 'kotor' || selectedType === 'keduanya';
@@ -37,7 +64,7 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+            if (file.size > 5 * 1024 * 1024) {
                 toast({
                     variant: 'destructive',
                     title: 'File terlalu besar',
@@ -47,20 +74,89 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
             }
             const reader = new FileReader();
             reader.onloadend = () => {
-                setImagePreview(reader.result as string);
+                const result = reader.result as string;
+                setImagePreview(result);
+                // Auto-start AI analysis when image is captured
+                startAIAnalysis(result);
             };
             reader.readAsDataURL(file);
         }
     };
 
+    const startAIAnalysis = async (imageData: string) => {
+        setIsAnalyzing(true);
+        setAiAnalysis(null);
+        try {
+            const result = await analyzePoopWithAI(imageData, babyAgeInMonths);
+
+            if (result.success && result.data) {
+                setAiAnalysis(result.data);
+                toast({
+                    title: 'Analisis Selesai!',
+                    description: result.data.isNormal ? 'Feses bayi terlihat normal.' : 'Ada catatan penting untuk diperhatikan.',
+                });
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Gagal Menganalisis',
+                    description: result.message || 'Silakan coba lagi atau gunakan mode manual.',
+                });
+            }
+        } catch {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Terjadi kesalahan. Silakan coba lagi.',
+            });
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    // Check if manual input indicates warning
+    const isManualWarning = manualColor === 'putih' || manualColor === 'merah' || manualColor === 'hitam';
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        let poopType: DiaperChange['poopType'] = 'biasa';
+        if (showPoopOptions) {
+            if (inputMode === 'manual') {
+                if (manualTexture === 'cair') poopType = 'cair';
+                else if (manualTexture === 'keras' || manualTexture === 'padat') poopType = 'keras';
+            } else if (aiAnalysis) {
+                const consistency = aiAnalysis.consistency.toLowerCase();
+                if (consistency.includes('cair') || consistency.includes('encer')) poopType = 'cair';
+                else if (consistency.includes('keras') || consistency.includes('padat')) poopType = 'keras';
+            }
+        }
+
+        // Build manual analysis if in manual mode with BAB
+        let finalAiAnalysis: PoopAIAnalysis | undefined;
+        if (showPoopOptions && inputMode === 'manual') {
+            const colorLabel = colorOptions.find(c => c.value === manualColor)?.label || manualColor;
+            const textureLabel = textureOptions.find(t => t.value === manualTexture)?.label || manualTexture;
+
+            finalAiAnalysis = {
+                color: colorLabel,
+                consistency: textureLabel,
+                isNormal: !isManualWarning,
+                description: `Feses berwarna ${colorLabel.toLowerCase()} dengan tekstur ${textureLabel.toLowerCase()}.`,
+                warning: isManualWarning ? 'Warna feses tidak normal. Segera konsultasikan ke dokter.' : undefined,
+                advice: isManualWarning
+                    ? 'Segera bawa bayi ke dokter atau fasilitas kesehatan terdekat.'
+                    : 'Lanjutkan pemantauan rutin.',
+            };
+        } else if (showPoopOptions && aiAnalysis) {
+            finalAiAnalysis = aiAnalysis;
+        }
 
         onAddDiaper({
             type: selectedType,
             poopType: showPoopOptions ? poopType : undefined,
             notes: notes.trim() || undefined,
-            image: showPoopOptions ? imagePreview || undefined : undefined,
+            image: showPoopOptions && inputMode === 'ai' ? imagePreview || undefined : undefined,
+            aiAnalysis: finalAiAnalysis,
             time: new Date(),
         });
 
@@ -71,15 +167,22 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
         });
 
         // Reset form
+        resetForm();
+    };
+
+    const resetForm = () => {
         setSelectedType('basah');
-        setPoopType('biasa');
+        setInputMode('manual');
+        setManualColor('kuning');
+        setManualTexture('lembek');
         setNotes('');
         setImagePreview(null);
+        setAiAnalysis(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
             {/* Diaper Type Selection */}
             <div className="space-y-2">
                 <Label>Jenis Popok</Label>
@@ -88,8 +191,14 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
                         <button
                             key={type.value}
                             type="button"
-                            onClick={() => setSelectedType(type.value)}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${selectedType === type.value
+                            onClick={() => {
+                                setSelectedType(type.value);
+                                if (type.value === 'basah') {
+                                    setAiAnalysis(null);
+                                    setImagePreview(null);
+                                }
+                            }}
+                            className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${selectedType === type.value
                                     ? 'border-primary bg-primary/10 text-primary'
                                     : 'border-muted hover:border-primary/50'
                                 }`}
@@ -102,35 +211,108 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
                 </div>
             </div>
 
-            {/* Poop Type Selection (shown when BAB selected) */}
+            {/* Input Mode Selection (shown when BAB selected) */}
             {showPoopOptions && (
                 <div className="space-y-2">
-                    <Label>Jenis BAB</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                        {poopTypes.map((type) => (
-                            <button
-                                key={type.value}
-                                type="button"
-                                onClick={() => setPoopType(type.value)}
-                                className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${poopType === type.value
-                                        ? 'border-primary bg-primary/10 text-primary'
-                                        : 'border-muted hover:border-primary/50'
-                                    }`}
-                            >
-                                {type.label}
-                            </button>
-                        ))}
+                    <Label>Cara Input BAB</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setInputMode('manual');
+                                setImagePreview(null);
+                                setAiAnalysis(null);
+                            }}
+                            className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${inputMode === 'manual'
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-muted hover:border-primary/50'
+                                }`}
+                        >
+                            <PenLine className="h-4 w-4" />
+                            <span className="font-medium text-sm">Catat Manual</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setInputMode('ai')}
+                            className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${inputMode === 'ai'
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-muted hover:border-primary/50'
+                                }`}
+                        >
+                            <Bot className="h-4 w-4" />
+                            <span className="font-medium text-sm">Analisis AI</span>
+                        </button>
                     </div>
                 </div>
             )}
 
-            {/* Image Upload (shown when BAB selected) */}
-            {showPoopOptions && (
-                <div className="space-y-2">
-                    <Label>Foto BAB (opsional)</Label>
+            {/* Manual Input Mode */}
+            {showPoopOptions && inputMode === 'manual' && (
+                <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+                    {/* Color Selection */}
+                    <div className="space-y-2">
+                        <Label>Warna Feses</Label>
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {colorOptions.map((color) => {
+                                const isWarningColor = color.value === 'putih' || color.value === 'merah' || color.value === 'hitam';
+                                return (
+                                    <button
+                                        key={color.value}
+                                        type="button"
+                                        onClick={() => setManualColor(color.value)}
+                                        className={`p-2 rounded-md border text-xs font-medium transition-all ${manualColor === color.value
+                                                ? isWarningColor
+                                                    ? 'border-destructive bg-destructive/10 text-destructive'
+                                                    : 'border-primary bg-primary/10 text-primary'
+                                                : 'border-muted hover:border-primary/50'
+                                            }`}
+                                    >
+                                        {color.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Texture Selection */}
+                    <div className="space-y-2">
+                        <Label>Tekstur Feses</Label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                            {textureOptions.map((texture) => (
+                                <button
+                                    key={texture.value}
+                                    type="button"
+                                    onClick={() => setManualTexture(texture.value)}
+                                    className={`p-2 rounded-md border text-xs font-medium transition-all ${manualTexture === texture.value
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-muted hover:border-primary/50'
+                                        }`}
+                                >
+                                    {texture.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Warning for abnormal colors */}
+                    {isManualWarning && (
+                        <Alert variant="destructive">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Perhatian!</AlertTitle>
+                            <AlertDescription>
+                                Warna feses ini tidak normal. Segera konsultasikan ke dokter atau fasilitas kesehatan terdekat.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </div>
+            )}
+
+            {/* AI Analysis Mode */}
+            {showPoopOptions && inputMode === 'ai' && (
+                <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
                     <div className="flex flex-col items-center gap-3">
                         {imagePreview ? (
-                            <div className="relative w-full max-w-[200px]">
+                            <div className="relative w-full max-w-[180px]">
                                 <img
                                     src={imagePreview}
                                     alt="Preview"
@@ -143,6 +325,7 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
                                     className="absolute -top-2 -right-2 h-6 w-6"
                                     onClick={() => {
                                         setImagePreview(null);
+                                        setAiAnalysis(null);
                                         if (fileInputRef.current) fileInputRef.current.value = '';
                                     }}
                                 >
@@ -157,7 +340,7 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
                                 onClick={() => fileInputRef.current?.click()}
                             >
                                 <Camera className="h-4 w-4 mr-2" />
-                                Ambil Foto
+                                Ambil Foto BAB untuk Analisis
                             </Button>
                         )}
                         <input
@@ -169,15 +352,72 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
                             className="hidden"
                         />
                     </div>
+
+                    {/* Loading State */}
+                    {isAnalyzing && (
+                        <div className="flex items-center justify-center gap-2 py-4">
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            <span className="text-sm text-muted-foreground">Menganalisis foto...</span>
+                        </div>
+                    )}
+
+                    {/* AI Analysis Result */}
+                    {aiAnalysis && !isAnalyzing && (
+                        <div className="space-y-3">
+                            {aiAnalysis.warning && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Perhatian!</AlertTitle>
+                                    <AlertDescription>{aiAnalysis.warning}</AlertDescription>
+                                </Alert>
+                            )}
+
+                            <div className={`p-3 rounded-lg border ${aiAnalysis.isNormal ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                                <div className="flex items-center gap-2 mb-2">
+                                    {aiAnalysis.isNormal ? (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                    )}
+                                    <span className="font-semibold text-sm">
+                                        {aiAnalysis.isNormal ? 'Feses Normal' : 'Perlu Perhatian'}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-1.5 text-sm">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <span className="text-muted-foreground text-xs">Warna:</span>
+                                            <p className="font-medium">{aiAnalysis.color}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground text-xs">Tekstur:</span>
+                                            <p className="font-medium">{aiAnalysis.consistency}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-muted-foreground text-xs">Deskripsi:</span>
+                                        <p className="text-xs">{aiAnalysis.description}</p>
+                                    </div>
+
+                                    <div className="pt-1.5 border-t">
+                                        <span className="text-muted-foreground text-xs">💡 Saran:</span>
+                                        <p className="font-medium text-xs">{aiAnalysis.advice}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Notes (optional) */}
             <div className="space-y-2">
-                <Label htmlFor="diaper-notes">Catatan (opsional)</Label>
+                <Label htmlFor="diaper-notes">Catatan Tambahan (opsional)</Label>
                 <Textarea
                     id="diaper-notes"
-                    placeholder="Contoh: ruam popok, warna tidak biasa, dll..."
+                    placeholder="Contoh: ruam popok, bau tidak biasa, dll..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={2}
@@ -185,7 +425,7 @@ export default function DiaperForm({ onAddDiaper }: DiaperFormProps) {
             </div>
 
             {/* Submit Button */}
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={isAnalyzing}>
                 Catat Pergantian Popok
             </Button>
         </form>

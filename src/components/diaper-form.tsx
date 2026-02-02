@@ -82,8 +82,10 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
             reader.onloadend = () => {
                 const result = reader.result as string;
                 setImagePreview(result);
-                // Auto-start AI analysis when image is captured
-                startAIAnalysis(result);
+                // Only auto-start AI analysis in AI mode
+                if (inputMode === 'ai') {
+                    startAIAnalysis(result);
+                }
             };
             reader.readAsDataURL(file);
         }
@@ -191,6 +193,15 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Hidden file input - shared by manual and AI mode */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+            />
+
             {/* Diaper Type Selection */}
             <div className="space-y-2">
                 <Label>Jenis Popok</Label>
@@ -434,13 +445,6 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                                 </Button>
                             </div>
                         )}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            className="hidden"
-                        />
                     </div>
 
                     {/* Loading State */}

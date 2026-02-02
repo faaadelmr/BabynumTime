@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { Droplet, CircleDot, Layers, Camera, X, Sparkles, AlertTriangle, Loader2, CheckCircle, PenLine, Bot } from 'lucide-react';
+import { Droplet, CircleDot, Layers, Camera, X, Sparkles, AlertTriangle, Loader2, CheckCircle, PenLine, Bot, ImagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { DiaperChange, PoopAIAnalysis } from '@/lib/types';
 import { analyzePoopWithAI } from '@/ai/flows/analyze-poop-flow';
+import { format } from 'date-fns';
 
 interface DiaperFormProps {
     onAddDiaper: (diaper: Omit<DiaperChange, 'id' | 'time'> & { time: Date }) => void;
@@ -58,6 +60,10 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
     const [aiAnalysis, setAiAnalysis] = useState<PoopAIAnalysis | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Custom time
+    const [showCustomTime, setShowCustomTime] = useState(false);
+    const [customTime, setCustomTime] = useState<Date>(new Date());
 
     const showPoopOptions = selectedType === 'kotor' || selectedType === 'keduanya';
 
@@ -155,9 +161,9 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
             type: selectedType,
             poopType: showPoopOptions ? poopType : undefined,
             notes: notes.trim() || undefined,
-            image: showPoopOptions && inputMode === 'ai' ? imagePreview || undefined : undefined,
+            image: showPoopOptions && imagePreview ? imagePreview : undefined,
             aiAnalysis: finalAiAnalysis,
-            time: new Date(),
+            time: showCustomTime ? customTime : new Date(),
         });
 
         const typeLabel = diaperTypes.find(t => t.value === selectedType)?.label || selectedType;
@@ -178,6 +184,8 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
         setNotes('');
         setImagePreview(null);
         setAiAnalysis(null);
+        setShowCustomTime(false);
+        setCustomTime(new Date());
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -199,8 +207,8 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                                 }
                             }}
                             className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${selectedType === type.value
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-muted hover:border-primary/50'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-muted hover:border-primary/50'
                                 }`}
                         >
                             {type.icon}
@@ -224,8 +232,8 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                                 setAiAnalysis(null);
                             }}
                             className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${inputMode === 'manual'
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-muted hover:border-primary/50'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-muted hover:border-primary/50'
                                 }`}
                         >
                             <PenLine className="h-4 w-4" />
@@ -235,8 +243,8 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                             type="button"
                             onClick={() => setInputMode('ai')}
                             className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${inputMode === 'ai'
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-muted hover:border-primary/50'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-muted hover:border-primary/50'
                                 }`}
                         >
                             <Bot className="h-4 w-4" />
@@ -261,10 +269,10 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                                         type="button"
                                         onClick={() => setManualColor(color.value)}
                                         className={`p-2 rounded-md border text-xs font-medium transition-all ${manualColor === color.value
-                                                ? isWarningColor
-                                                    ? 'border-destructive bg-destructive/10 text-destructive'
-                                                    : 'border-primary bg-primary/10 text-primary'
-                                                : 'border-muted hover:border-primary/50'
+                                            ? isWarningColor
+                                                ? 'border-destructive bg-destructive/10 text-destructive'
+                                                : 'border-primary bg-primary/10 text-primary'
+                                            : 'border-muted hover:border-primary/50'
                                             }`}
                                     >
                                         {color.label}
@@ -284,8 +292,8 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                                     type="button"
                                     onClick={() => setManualTexture(texture.value)}
                                     className={`p-2 rounded-md border text-xs font-medium transition-all ${manualTexture === texture.value
-                                            ? 'border-primary bg-primary/10 text-primary'
-                                            : 'border-muted hover:border-primary/50'
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-muted hover:border-primary/50'
                                         }`}
                                 >
                                     {texture.label}
@@ -304,6 +312,67 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                             </AlertDescription>
                         </Alert>
                     )}
+
+                    {/* Image Upload for Manual Mode */}
+                    <div className="space-y-2">
+                        <Label>Foto BAB (opsional)</Label>
+                        <div className="flex flex-col items-center gap-3">
+                            {imagePreview ? (
+                                <div className="relative w-full max-w-[180px]">
+                                    <img
+                                        src={imagePreview}
+                                        alt="Preview"
+                                        className="w-full h-auto rounded-lg border"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute -top-2 -right-2 h-6 w-6"
+                                        onClick={() => {
+                                            setImagePreview(null);
+                                            if (fileInputRef.current) fileInputRef.current.value = '';
+                                        }}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="w-full flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => {
+                                            if (fileInputRef.current) {
+                                                fileInputRef.current.removeAttribute('capture');
+                                                fileInputRef.current.click();
+                                            }
+                                        }}
+                                    >
+                                        <ImagePlus className="h-4 w-4 mr-1" />
+                                        Galeri
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => {
+                                            if (fileInputRef.current) {
+                                                fileInputRef.current.setAttribute('capture', 'environment');
+                                                fileInputRef.current.click();
+                                            }
+                                        }}
+                                    >
+                                        <Camera className="h-4 w-4 mr-1" />
+                                        Kamera
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -333,21 +402,42 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                                 </Button>
                             </div>
                         ) : (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                <Camera className="h-4 w-4 mr-2" />
-                                Ambil Foto BAB untuk Analisis
-                            </Button>
+                            <div className="w-full space-y-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => {
+                                        // Remove capture to allow gallery selection
+                                        if (fileInputRef.current) {
+                                            fileInputRef.current.removeAttribute('capture');
+                                            fileInputRef.current.click();
+                                        }
+                                    }}
+                                >
+                                    <ImagePlus className="h-4 w-4 mr-2" />
+                                    Pilih dari Galeri
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => {
+                                        if (fileInputRef.current) {
+                                            fileInputRef.current.setAttribute('capture', 'environment');
+                                            fileInputRef.current.click();
+                                        }
+                                    }}
+                                >
+                                    <Camera className="h-4 w-4 mr-2" />
+                                    Ambil Foto
+                                </Button>
+                            </div>
                         )}
                         <input
                             ref={fileInputRef}
                             type="file"
                             accept="image/*"
-                            capture="environment"
                             onChange={handleImageChange}
                             className="hidden"
                         />
@@ -411,6 +501,35 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                     )}
                 </div>
             )}
+
+            {/* Custom Time Option */}
+            <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id="custom-time-diaper"
+                        checked={showCustomTime}
+                        onCheckedChange={(checked) => {
+                            setShowCustomTime(!!checked);
+                            if (!checked) {
+                                setCustomTime(new Date());
+                            }
+                        }}
+                    />
+                    <label
+                        htmlFor="custom-time-diaper"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                        Atur waktu & tanggal secara manual
+                    </label>
+                </div>
+                {showCustomTime && (
+                    <Input
+                        type="datetime-local"
+                        value={format(customTime, "yyyy-MM-dd'T'HH:mm")}
+                        onChange={(e) => setCustomTime(new Date(e.target.value))}
+                    />
+                )}
+            </div>
 
             {/* Notes (optional) */}
             <div className="space-y-2">

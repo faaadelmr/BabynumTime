@@ -211,3 +211,54 @@ export async function syncNow(
     const data = getData();
     return syncToCloud(config.babyId, data);
 }
+
+// Send data to cloud immediately (real-time sync)
+// This is called whenever data is added/modified/deleted
+export async function sendDataToCloud(): Promise<{ success: boolean; error?: string }> {
+    const config = getStorageConfig();
+    if (!config || config.storageMode !== 'cloud' || !config.babyId) {
+        return { success: false, error: 'Not in cloud mode' };
+    }
+
+    if (!isApiConfigured()) {
+        return { success: false, error: 'API URL not configured' };
+    }
+
+    try {
+        // Get all data from localStorage
+        const feedingsStr = localStorage.getItem('babyCareFeedings');
+        const diapersStr = localStorage.getItem('babyCareDiapers');
+        const cryAnalysesStr = localStorage.getItem('babyCareCryAnalyses');
+
+        const data = {
+            feedings: feedingsStr ? JSON.parse(feedingsStr) : [],
+            diapers: diapersStr ? JSON.parse(diapersStr) : [],
+            cryAnalyses: cryAnalysesStr ? JSON.parse(cryAnalysesStr) : [],
+        };
+
+        // Use URL params with encoded JSON data
+        const params = new URLSearchParams({
+            action: 'syncData',
+            babyId: config.babyId,
+            data: JSON.stringify(data),
+        });
+
+        const response = await fetch(`${API_URL}?${params.toString()}`, {
+            method: 'GET',
+            redirect: 'follow',
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+            clearPendingSync();
+            return { success: true };
+        }
+
+        return { success: false, error: result.error || 'Sync failed' };
+    } catch (error) {
+        console.error('Error sending data to cloud:', error);
+        return { success: false, error: 'Network error' };
+    }
+}

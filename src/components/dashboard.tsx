@@ -33,6 +33,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import CryAnalyzerForm from "./cry-analyzer-form";
 import CryHistory from "./cry-history";
+import { sendDataToCloud } from "@/lib/cloud-sync";
 
 interface DashboardProps {
   birthDate: Date;
@@ -85,6 +86,8 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
     setFeedings(updatedFeedings);
     localStorage.setItem("babyCareFeedings", JSON.stringify(updatedFeedings));
     onDataChange?.();
+    // Real-time sync to cloud
+    sendDataToCloud();
   };
 
   const addCryAnalysis = (newAnalysis: { result: CryAnalysisResult, time: Date, detectedSound?: string }) => {
@@ -98,6 +101,8 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
     setCryAnalyses(updatedAnalyses);
     localStorage.setItem("babyCareCryAnalyses", JSON.stringify(updatedAnalyses));
     onDataChange?.();
+    // Real-time sync to cloud
+    sendDataToCloud();
   };
 
   const addDiaper = (newDiaper: Omit<DiaperChange, "id" | "time"> & { time: Date }) => {
@@ -110,6 +115,8 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
     setDiapers(updatedDiapers);
     localStorage.setItem("babyCareDiapers", JSON.stringify(updatedDiapers));
     onDataChange?.();
+    // Real-time sync to cloud
+    sendDataToCloud();
   };
 
   const deleteFeeding = (id: string) => {
@@ -118,6 +125,7 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
     localStorage.setItem("babyCareFeedings", JSON.stringify(updatedFeedings));
     onDataChange?.();
     toast({ title: "Catatan minum dihapus." });
+    sendDataToCloud();
   };
 
   const deleteCryAnalysis = (id: string) => {
@@ -126,6 +134,7 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
     localStorage.setItem("babyCareCryAnalyses", JSON.stringify(updatedAnalyses));
     onDataChange?.();
     toast({ title: "Catatan analisis dihapus." });
+    sendDataToCloud();
   };
 
   const deleteDiaper = (id: string) => {
@@ -134,6 +143,7 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
     localStorage.setItem("babyCareDiapers", JSON.stringify(updatedDiapers));
     onDataChange?.();
     toast({ title: "Catatan pergantian popok dihapus." });
+    sendDataToCloud();
   };
 
   const handleDeleteConfirm = () => {

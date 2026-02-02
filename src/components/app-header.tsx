@@ -15,13 +15,14 @@ import {
 type AppHeaderProps = {
   onEditBirthDate: () => void;
   showActions: boolean;
+  babyName?: string;
 };
 
 // Puter credentials
 const PUTER_USERNAME = "kitacobatest";
 const PUTER_PASSWORD = "Kitacobatest1!";
 
-export default function AppHeader({ onEditBirthDate, showActions }: AppHeaderProps) {
+export default function AppHeader({ onEditBirthDate, showActions, babyName }: AppHeaderProps) {
   const { toast } = useToast();
   const [copiedField, setCopiedField] = useState<'username' | 'password' | null>(null);
   const [showAbout, setShowAbout] = useState(false);
@@ -54,9 +55,16 @@ export default function AppHeader({ onEditBirthDate, showActions }: AppHeaderPro
               <div className="bg-primary/20 text-primary p-1.5 sm:p-2 rounded-lg">
                 <Baby className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <h1 className="text-lg sm:text-2xl font-headline font-bold text-foreground">
-                Babynum Time
-              </h1>
+              <div>
+                <h1 className="text-lg sm:text-2xl font-headline font-bold text-foreground">
+                  Babynum Time
+                </h1>
+                {showActions && (
+                  <p className="text-xs sm:text-sm text-muted-foreground -mt-0.5">
+                    Hi bunda, catatan {babyName ? <span className="font-medium text-primary">{babyName}</span> : 'si kecil'} 👋
+                  </p>
+                )}
+              </div>
             </div>
 
             {showActions && (
@@ -129,11 +137,11 @@ export default function AppHeader({ onEditBirthDate, showActions }: AppHeaderPro
               🍼 Mengapa aplikasi ini dibuat?
             </DialogTitle>
             <DialogDescription className="text-sm leading-relaxed">
-              Aplikasi ini didedikasikan khusus untuk istri saya, Caca ❤️, dan buah hati tercinta kami.
+              Aplikasi ini dibuat khusus untuk istri saya, Caca ❤️, dan buah hati tercinta kami.
               Sebagai orang tua baru, kami sadar betapa menantangnya mengingat jadwal menyusui,
               ganti popok, dan rutinitas lainnya di tengah kesibukan.
               Semoga aplikasi sederhana ini bisa membantu para orang tua baru dalam mencatat
-              tumbuh kembang harian si kecil dengan lebih mudah.
+              kegiatan harian si kecil dengan lebih mudah.
             </DialogDescription>
           </DialogHeader>
 
@@ -143,7 +151,7 @@ export default function AppHeader({ onEditBirthDate, showActions }: AppHeaderPro
               <p className="text-muted-foreground leading-relaxed">
                 Aplikasi ini sepenuhnya Gratis tanpa perlu donasi atau biaya langganan.
                 Dukungan terbaik yang bisa Anda berikan adalah selipan doa baik untuk anak kami,
-                <strong> Haru Muamar Rifai</strong>. Itu sudah lebih dari cukup bagi kami.
+                <strong> Haru Muamar Rifai</strong>. Terima kasih.
               </p>
             </div>
 

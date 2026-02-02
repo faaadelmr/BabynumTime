@@ -162,6 +162,7 @@ export default function Home() {
       <AppHeader
         onEditBirthDate={openSettingsDialog}
         showActions={!!config && isClient}
+        babyName={config?.babyName}
       />
       <main className="flex-grow container mx-auto p-4 md:p-8">
         {!isClient ? (

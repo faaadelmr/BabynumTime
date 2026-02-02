@@ -1,4 +1,4 @@
-const CACHE_NAME = 'babynum-time-v1';
+const CACHE_NAME = 'babynum-time-v2';
 const urlsToCache = [
     '/',
     '/manifest.json',

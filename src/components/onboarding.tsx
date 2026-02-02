@@ -107,13 +107,36 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
         setIsLoading(true);
         const result = await getBabyFromCloud(existingBabyId.trim().toUpperCase());
-        setIsLoading(false);
 
         if (result.success && result.baby) {
+            // Fetch existing data from cloud
+            const { getDataFromCloud } = await import('@/lib/cloud-sync');
+            const dataResult = await getDataFromCloud(existingBabyId.trim().toUpperCase());
+
+            if (dataResult.success && dataResult.data) {
+                // Save fetched data to localStorage
+                if (dataResult.data.feedings && dataResult.data.feedings.length > 0) {
+                    localStorage.setItem("babyCareFeedings", JSON.stringify(dataResult.data.feedings));
+                }
+                if (dataResult.data.diapers && dataResult.data.diapers.length > 0) {
+                    localStorage.setItem("babyCareDiapers", JSON.stringify(dataResult.data.diapers));
+                }
+                if (dataResult.data.cryAnalyses && dataResult.data.cryAnalyses.length > 0) {
+                    localStorage.setItem("babyCareCryAnalyses", JSON.stringify(dataResult.data.cryAnalyses));
+                }
+                toast({
+                    title: 'Berhasil terhubung!',
+                    description: `Data berhasil dimuat: ${dataResult.data.feedings?.length || 0} minum, ${dataResult.data.diapers?.length || 0} popok`
+                });
+            } else {
+                toast({ title: 'Berhasil terhubung!', description: 'Belum ada data tersimpan di cloud.' });
+            }
+
             setStorageConfig(result.baby);
+            setIsLoading(false);
             onComplete(result.baby);
-            toast({ title: 'Berhasil terhubung!' });
         } else {
+            setIsLoading(false);
             toast({
                 variant: 'destructive',
                 title: 'ID tidak ditemukan',

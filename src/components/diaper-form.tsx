@@ -253,14 +253,12 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                         </button>
                         <button
                             type="button"
-                            onClick={() => setInputMode('ai')}
-                            className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${inputMode === 'ai'
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-muted hover:border-primary/50'
-                                }`}
+                            disabled
+                            className={`relative flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all border-muted opacity-50 cursor-not-allowed`}
                         >
                             <Bot className="h-4 w-4" />
                             <span className="font-medium text-sm">Analisis AI</span>
+                            <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">Segera!!</span>
                         </button>
                     </div>
                 </div>
@@ -504,7 +502,7 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                             </div>
                         </div>
                     )}
-                    
+
                     <PuterCredentials />
                 </div>
             )}

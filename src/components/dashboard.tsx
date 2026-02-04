@@ -221,7 +221,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="feeding">Minum</TabsTrigger>
                   <TabsTrigger value="diaper">Popok</TabsTrigger>
-                  <TabsTrigger value="cry">AI</TabsTrigger>
+                  <TabsTrigger value="cry">Analisis Tangisan</TabsTrigger>
                 </TabsList>
                 <TabsContent value="feeding" className="pt-6">
                   <FeedingForm onAddFeeding={addFeeding} />

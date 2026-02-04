@@ -200,12 +200,22 @@ export default function CryAnalyzerForm({ onAddAnalysis }: CryAnalyzerFormProps)
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Coming Soon Overlay */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-lg">
+        <div className="bg-amber-500 text-white font-bold text-lg px-4 py-2 rounded-full animate-pulse shadow-lg">
+          Segera!!
+        </div>
+        <p className="text-muted-foreground text-sm mt-2 text-center px-4">
+          Fitur Analisis Tangisan AI sedang dalam pengembangan
+        </p>
+      </div>
+
       {/* Recording Button with Countdown */}
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 pointer-events-none opacity-50">
         <Button
           onClick={isRecording ? stopRecording : startRecording}
-          disabled={isLoading}
+          disabled={true}
           size="lg"
           className={`w-48 h-16 text-lg transition-all ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}`}
         >

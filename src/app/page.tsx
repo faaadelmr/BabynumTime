@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Trash2, Cloud, RefreshCw, Loader2, Copy, Check } from "lucide-react";
+import { Trash2, Cloud, Loader2, Copy, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { getStorageConfig, setStorageConfig, clearStorageConfig, type BabyInfo } from "@/lib/storage-mode";
@@ -40,12 +40,17 @@ export default function Home() {
   const [showEditBirthDate, setShowEditBirthDate] = useState(false);
   const [newBirthDate, setNewBirthDate] = useState<Date | undefined>();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [copied, setCopied] = useState(false);
   const [showUpgradeToCloud, setShowUpgradeToCloud] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [newBabyId, setNewBabyId] = useState<string | null>(null);
+
+  // Callback when data is received from cloud
+  const handleDataReceived = useCallback((data: any) => {
+    setLastSync(new Date());
+    toast({ title: "Data terbaru diterima!" });
+  }, [toast]);
 
   // Get data function for sync
   const getData = useCallback(() => {
@@ -67,7 +72,7 @@ export default function Home() {
             setLastSync(new Date());
             toast({ title: "Data tersinkron!" });
           }
-        });
+        }, handleDataReceived);
         setLastSync(getLastSyncTime());
       }
     }
@@ -76,7 +81,7 @@ export default function Home() {
     return () => {
       stopAutoSync();
     };
-  }, [getData, toast]);
+  }, [getData, toast, handleDataReceived]);
 
   const handleOnboardingComplete = async (newConfig: BabyInfo) => {
     setConfig(newConfig);
@@ -96,7 +101,7 @@ export default function Home() {
         if (success) {
           setLastSync(new Date());
         }
-      });
+      }, handleDataReceived);
     }
   };
 
@@ -128,18 +133,6 @@ export default function Home() {
     window.location.reload();
   };
 
-  const handleManualSync = async () => {
-    setIsSyncing(true);
-    const result = await syncNow(getData);
-    setIsSyncing(false);
-
-    if (result.success) {
-      setLastSync(new Date());
-      toast({ title: "Sinkronisasi berhasil!" });
-    } else {
-      toast({ variant: "destructive", title: "Gagal sinkron", description: result.error });
-    }
-  };
 
   const copyBabyId = async () => {
     if (config?.babyId) {
@@ -163,6 +156,7 @@ export default function Home() {
         onEditBirthDate={openSettingsDialog}
         showActions={!!config && isClient}
         babyName={config?.babyName}
+        lastSync={lastSync}
       />
       <main className="flex-grow container mx-auto p-4 md:p-8">
         {!isClient ? (
@@ -174,7 +168,7 @@ export default function Home() {
             </div>
           </div>
         ) : birthDate ? (
-          <Dashboard birthDate={birthDate} onDataChange={markPendingSync} />
+          <Dashboard birthDate={birthDate} onDataChange={markPendingSync} lastSync={lastSync} />
         ) : null}
       </main>
 
@@ -207,19 +201,6 @@ export default function Home() {
                   >
                     {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                     Salin ID
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleManualSync}
-                    disabled={isSyncing}
-                  >
-                    {isSyncing ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                    )}
-                    Sinkron
                   </Button>
                 </div>
 
@@ -354,7 +335,7 @@ export default function Home() {
                       if (success) {
                         setLastSync(new Date());
                       }
-                    });
+                    }, handleDataReceived);
 
                     toast({ title: "Berhasil upgrade ke cloud!" });
                   } else {

@@ -38,9 +38,10 @@ import { sendDataToCloud } from "@/lib/cloud-sync";
 interface DashboardProps {
   birthDate: Date;
   onDataChange?: () => void;
+  lastSync?: Date | null;
 }
 
-export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
+export default function Dashboard({ birthDate, onDataChange, lastSync }: DashboardProps) {
   const [feedings, setFeedings] = useState<Feeding[]>([]);
   const [cryAnalyses, setCryAnalyses] = useState<CryAnalysis[]>([]);
   const [diapers, setDiapers] = useState<DiaperChange[]>([]);
@@ -48,7 +49,7 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
   const [itemToDelete, setItemToDelete] = useState<{ type: 'feeding' | 'cry' | 'diaper', id: string } | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
+  const loadData = () => {
     const storedFeedings = localStorage.getItem("babyCareFeedings");
     if (storedFeedings) {
       setFeedings(JSON.parse(storedFeedings));
@@ -61,8 +62,12 @@ export default function Dashboard({ birthDate, onDataChange }: DashboardProps) {
     if (storedDiapers) {
       setDiapers(JSON.parse(storedDiapers));
     }
+  };
+
+  useEffect(() => {
+    loadData();
     setIsClient(true);
-  }, []);
+  }, [lastSync]); // Reload data when lastSync changes
 
   const sortedFeedings = useMemo(() => {
     return [...feedings].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());

@@ -8,6 +8,7 @@ import { analyzeCry, type AnalysisResponse } from '@/ai/flows/analyze-cry-flow';
 import type { CryAnalysisResult } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { PuterCredentials } from '@/components/puter-credentials';
 
 // Recording duration in seconds (5 seconds is optimal for capturing baby cry patterns)
 const RECORDING_DURATION = 5;
@@ -321,6 +322,8 @@ export default function CryAnalyzerForm({ onAddAnalysis }: CryAnalyzerFormProps)
           </CardContent>
         </Card>
       )}
+
+      <PuterCredentials />
     </div>
   );
 }

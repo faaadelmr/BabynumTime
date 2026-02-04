@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PuterCredentials } from '@/components/puter-credentials';
 import type { DiaperChange, PoopAIAnalysis } from '@/lib/types';
 import { analyzePoopWithAI } from '@/ai/flows/analyze-poop-flow';
 import { format } from 'date-fns';
@@ -503,6 +504,8 @@ export default function DiaperForm({ onAddDiaper, babyAgeInMonths }: DiaperFormP
                             </div>
                         </div>
                     )}
+                    
+                    <PuterCredentials />
                 </div>
             )}
 

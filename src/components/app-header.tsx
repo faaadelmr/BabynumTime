@@ -1,9 +1,11 @@
 "use client";
 
-import { Baby, Settings, User, KeyRound, Check, HelpCircle, Heart } from "lucide-react";
+import { Baby, Settings, HelpCircle, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 import {
   Dialog,
   DialogContent,
@@ -16,34 +18,12 @@ type AppHeaderProps = {
   onEditBirthDate: () => void;
   showActions: boolean;
   babyName?: string;
+  lastSync?: Date | null;
 };
 
-// Puter credentials
-const PUTER_USERNAME = "kitacobatest";
-const PUTER_PASSWORD = "Kitacobatest1!";
-
-export default function AppHeader({ onEditBirthDate, showActions, babyName }: AppHeaderProps) {
+export default function AppHeader({ onEditBirthDate, showActions, babyName, lastSync }: AppHeaderProps) {
   const { toast } = useToast();
-  const [copiedField, setCopiedField] = useState<'username' | 'password' | null>(null);
   const [showAbout, setShowAbout] = useState(false);
-
-  const copyToClipboard = async (text: string, field: 'username' | 'password') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(field);
-      toast({
-        title: "Berhasil Disalin!",
-        description: field === 'username' ? "Username telah disalin." : "Password telah disalin.",
-      });
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Gagal Menyalin",
-        description: "Tidak dapat menyalin ke clipboard.",
-      });
-    }
-  };
 
   return (
     <>
@@ -68,29 +48,9 @@ export default function AppHeader({ onEditBirthDate, showActions, babyName }: Ap
             </div>
 
             {showActions && (
+              <div className="flex flex-col items-end">
               <div className="flex items-center gap-1 sm:gap-2">
-                {/* Puter Credentials - Desktop only (inline) */}
-                <div className="hidden md:flex items-center gap-1 text-xs mr-2">
-                  <span className="text-muted-foreground">Login Puter:</span>
-                  <button
-                    onClick={() => copyToClipboard(PUTER_USERNAME, 'username')}
-                    className="flex items-center gap-1 bg-muted hover:bg-accent px-1.5 py-1 rounded transition-colors"
-                    title="Klik untuk menyalin username"
-                  >
-                    <User className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-mono">{PUTER_USERNAME}</span>
-                    {copiedField === 'username' && <Check className="h-3 w-3 text-green-500" />}
-                  </button>
-                  <button
-                    onClick={() => copyToClipboard(PUTER_PASSWORD, 'password')}
-                    className="flex items-center gap-1 bg-muted hover:bg-accent px-1.5 py-1 rounded transition-colors"
-                    title="Klik untuk menyalin password"
-                  >
-                    <KeyRound className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-mono">••••••••</span>
-                    {copiedField === 'password' && <Check className="h-3 w-3 text-green-500" />}
-                  </button>
-                </div>
+                {/* Desktop credentials removed */}
 
                 <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={() => setShowAbout(true)} aria-label="Tentang Aplikasi">
                   <HelpCircle className="h-4 w-4" />
@@ -99,33 +59,16 @@ export default function AppHeader({ onEditBirthDate, showActions, babyName }: Ap
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
+              {lastSync && (
+                  <span className="text-[10px] text-muted-foreground mr-1">
+                    Update: {format(lastSync, "HH:mm", { locale: id })}
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Puter Credentials - Mobile only (below title) */}
-          {showActions && (
-            <div className="md:hidden mt-2 pt-2 border-t border-border/30">
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-muted-foreground text-[10px]">🔑 Login Puter AI:</span>
-                <button
-                  onClick={() => copyToClipboard(PUTER_USERNAME, 'username')}
-                  className="flex items-center gap-1 bg-muted/70 hover:bg-accent px-1.5 py-0.5 rounded transition-colors"
-                >
-                  <User className="h-2.5 w-2.5 text-muted-foreground" />
-                  <span className="font-mono text-[10px]">{PUTER_USERNAME}</span>
-                  {copiedField === 'username' && <Check className="h-2.5 w-2.5 text-green-500" />}
-                </button>
-                <button
-                  onClick={() => copyToClipboard(PUTER_PASSWORD, 'password')}
-                  className="flex items-center gap-1 bg-muted/70 hover:bg-accent px-1.5 py-0.5 rounded transition-colors"
-                >
-                  <KeyRound className="h-2.5 w-2.5 text-muted-foreground" />
-                  <span className="font-mono text-[10px]">tap salin</span>
-                  {copiedField === 'password' && <Check className="h-2.5 w-2.5 text-green-500" />}
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Credentials moved to specific tabs */}
         </div>
       </header>
 

@@ -58,7 +58,13 @@ export async function createBabyInCloud(birthDate: string, babyName?: string): P
             redirect: 'follow',
         });
 
-        const result = await response.json();
+        const raw = await response.text();
+        let result: any;
+        try {
+            result = JSON.parse(raw);
+        } catch {
+            return { success: false, error: 'Respons server tidak valid. Periksa URL Web App.' };
+        }
 
         if (result.success && result.baby) {
             return { success: true, babyId: result.baby.babyId };
@@ -79,7 +85,13 @@ export async function getBabyFromCloud(babyId: string): Promise<{ success: boole
 
     try {
         const response = await fetch(`${API_URL}?action=getBaby&babyId=${encodeURIComponent(babyId)}`);
-        const result = await response.json();
+        const raw = await response.text();
+        let result: any;
+        try {
+            result = JSON.parse(raw);
+        } catch {
+            return { success: false, error: 'Respons server tidak valid saat mengambil data bayi.' };
+        }
 
         if (result.success && result.baby) {
             return {
@@ -112,7 +124,13 @@ export async function getDataFromCloud(babyId: string): Promise<{
 
     try {
         const response = await fetch(`${API_URL}?action=getData&babyId=${encodeURIComponent(babyId)}`);
-        const result = await response.json();
+        const raw = await response.text();
+        let result: any;
+        try {
+            result = JSON.parse(raw);
+        } catch {
+            return { success: false, error: 'Respons server tidak valid saat mengambil data.' };
+        }
 
         if (result.success && result.data) {
             return { success: true, data: result.data };
@@ -147,7 +165,13 @@ export async function syncToCloud(
             redirect: 'follow',
         });
 
-        const result = await response.json();
+        const raw = await response.text();
+        let result: any;
+        try {
+            result = JSON.parse(raw);
+        } catch {
+            return { success: false, error: 'Respons server tidak valid saat sinkronisasi.' };
+        }
 
         if (result.success) {
             localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
@@ -165,7 +189,8 @@ export async function syncToCloud(
 // Start auto-sync timer
 export function startAutoSync(
     getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] },
-    onSyncComplete?: (success: boolean) => void
+    onSyncComplete?: (success: boolean) => void,
+    onDataReceived?: (data: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] }) => void
 ): void {
     if (syncTimer) {
         clearInterval(syncTimer);
@@ -176,19 +201,42 @@ export function startAutoSync(
         return;
     }
 
-    syncTimer = setInterval(async () => {
-        if (!hasPendingSync()) return;
-
+    // Function to perform sync (push and pull)
+    const performSync = async () => {
         const currentConfig = getStorageConfig();
         if (!currentConfig || currentConfig.storageMode !== 'cloud' || !currentConfig.babyId) {
             stopAutoSync();
             return;
         }
 
-        const data = getData();
-        const result = await syncToCloud(currentConfig.babyId, data);
-        onSyncComplete?.(result.success);
-    }, SYNC_INTERVAL);
+        // 1. Push pending changes if any
+        if (hasPendingSync()) {
+            const data = getData();
+            const pushResult = await syncToCloud(currentConfig.babyId, data);
+            onSyncComplete?.(pushResult.success);
+        }
+
+        // 2. Pull latest data from cloud
+        // Only pull if we don't have pending changes (to avoid overwriting local work)
+        // Or if we just successfully pushed
+        if (!hasPendingSync()) {
+            const pullResult = await getDataFromCloud(currentConfig.babyId);
+            if (pullResult.success && pullResult.data) {
+                // Update Local Storage
+                localStorage.setItem('babyCareFeedings', JSON.stringify(pullResult.data.feedings));
+                localStorage.setItem('babyCareDiapers', JSON.stringify(pullResult.data.diapers));
+                localStorage.setItem('babyCareCryAnalyses', JSON.stringify(pullResult.data.cryAnalyses));
+                
+                // Notify UI
+                onDataReceived?.(pullResult.data);
+            }
+        }
+    };
+
+    // Initial sync check
+    performSync();
+
+    syncTimer = setInterval(performSync, SYNC_INTERVAL);
 }
 
 // Stop auto-sync timer
@@ -248,7 +296,14 @@ export async function sendDataToCloud(): Promise<{ success: boolean; error?: str
             redirect: 'follow',
         });
 
-        const result = await response.json();
+        const raw = await response.text();
+        let result: any;
+        try {
+            result = JSON.parse(raw);
+        } catch {
+            markPendingSync();
+            return { success: false, error: 'Respons server tidak valid saat mengirim data.' };
+        }
 
         if (result.success) {
             localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
@@ -256,9 +311,11 @@ export async function sendDataToCloud(): Promise<{ success: boolean; error?: str
             return { success: true };
         }
 
+        markPendingSync();
         return { success: false, error: result.error || 'Sync failed' };
     } catch (error) {
         console.error('Error sending data to cloud:', error);
+        markPendingSync();
         return { success: false, error: 'Network error' };
     }
 }

@@ -17,6 +17,8 @@ import FeedingHistory from "./feeding-history";
 import DiaperForm from "./diaper-form";
 import DiaperHistory from "./diaper-history";
 import InfoCard from "./info-card";
+import FeedingProgressCard from "./feeding-progress-card";
+import DiaperProgressCard from "./diaper-progress-card";
 import FeedingCountdown from "./feeding-countdown";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -195,17 +197,25 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <InfoCard icon={Baby} title="Usia Bayi" value={ageString} />
         <FeedingCountdown nextFeedingTime={nextFeedingTime} />
-        <InfoCard
+        <FeedingProgressCard
           icon={lastFeedingIcon}
           title="Terakhir Minum"
-          value={lastFeeding ? `${lastFeeding.quantity} ml` : 'N/A'}
-          description={isClient ? `Hari ini: ${totalFeedingToday}ml / Rek. ${feedingReco.min}-${feedingReco.max}ml` : 'Memuat...'}
+          lastFeedingAmount={lastFeeding ? lastFeeding.quantity : null}
+          totalToday={totalFeedingToday}
+          recommendedMin={feedingReco.min}
+          recommendedMax={feedingReco.max}
+          isClient={isClient}
+          feedings={sortedFeedings}
         />
-        <InfoCard
+        <DiaperProgressCard
           icon={Shirt}
           title="Ganti Popok"
-          value={isClient ? `${totalDiapersToday}x hari ini` : 'Memuat...'}
-          description={isClient ? `BAB minggu ini: ${totalPoopsThisWeek}x (Rek. ${weeklyPoopReco.min}-${weeklyPoopReco.max}x)` : 'Memuat...'}
+          totalToday={totalDiapersToday}
+          totalPoopsThisWeek={totalPoopsThisWeek}
+          weeklyPoopMin={weeklyPoopReco.min}
+          weeklyPoopMax={weeklyPoopReco.max}
+          isClient={isClient}
+          diapers={sortedDiapers}
         />
       </div>
 

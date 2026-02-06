@@ -186,6 +186,37 @@ export async function syncToCloud(
     }
 }
 
+// Manual full sync (push and pull)
+export async function triggerFullSync(
+    getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] },
+    onDataReceived?: (data: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] }) => void
+): Promise<{ success: boolean; error?: string }> {
+    const config = getStorageConfig();
+    if (!config || config.storageMode !== 'cloud' || !config.babyId) {
+        return { success: false, error: 'Not in cloud mode' };
+    }
+
+    // 1. Push
+    const data = getData();
+    const pushResult = await syncToCloud(config.babyId, data);
+    if (!pushResult.success) {
+        return pushResult;
+    }
+
+    // 2. Pull
+    const pullResult = await getDataFromCloud(config.babyId);
+    if (pullResult.success && pullResult.data) {
+        // Update Local Storage
+        localStorage.setItem('babyCareFeedings', JSON.stringify(pullResult.data.feedings));
+        localStorage.setItem('babyCareDiapers', JSON.stringify(pullResult.data.diapers));
+        localStorage.setItem('babyCareCryAnalyses', JSON.stringify(pullResult.data.cryAnalyses));
+        
+        onDataReceived?.(pullResult.data);
+    }
+
+    return { success: true };
+}
+
 // Start auto-sync timer
 export function startAutoSync(
     getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] },

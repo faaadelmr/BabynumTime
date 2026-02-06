@@ -46,6 +46,29 @@ export default function RootLayout({
 
         {/* Puter.js for AI */}
         <script src="https://js.puter.com/v2/" defer></script>
+        
+        {/* Error handling for Puter.js */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('error', function(e) {
+                if (e.target && (e.target.src || '').includes('js.puter.com')) {
+                  console.warn('Gagal memuat Puter.js. Fitur AI mungkin tidak tersedia.');
+                  // Create a dummy puter object to prevent crashes
+                  if (typeof window.puter === 'undefined') {
+                    window.puter = {
+                      ai: {
+                        chat: async () => {
+                          throw new Error('Puter AI gagal dimuat (Masalah Koneksi/SSL). Silakan refresh atau cek koneksi internet.');
+                        }
+                      }
+                    };
+                  }
+                }
+              }, true);
+            `
+          }}
+        />
 
         {/* Service Worker Registration */}
         <script

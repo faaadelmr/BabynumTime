@@ -29,7 +29,7 @@ import { Trash2, Cloud, Loader2, Copy, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { getStorageConfig, setStorageConfig, clearStorageConfig, type BabyInfo } from "@/lib/storage-mode";
-import { startAutoSync, stopAutoSync, syncNow, syncToCloud, getLastSyncTime, markPendingSync, getDataFromCloud, createBabyInCloud, isApiConfigured } from "@/lib/cloud-sync";
+import { startAutoSync, stopAutoSync, syncNow, syncToCloud, getLastSyncTime, markPendingSync, getDataFromCloud, createBabyInCloud, isApiConfigured, triggerFullSync } from "@/lib/cloud-sync";
 import { useToast } from "@/hooks/use-toast";
 import type { Feeding, DiaperChange, CryAnalysis } from "@/lib/types";
 
@@ -41,6 +41,7 @@ export default function Home() {
   const [newBirthDate, setNewBirthDate] = useState<Date | undefined>();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showUpgradeToCloud, setShowUpgradeToCloud] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
@@ -102,6 +103,31 @@ export default function Home() {
           setLastSync(new Date());
         }
       }, handleDataReceived);
+    }
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await triggerFullSync(getData, handleDataReceived);
+      if (result.success) {
+        setLastSync(new Date());
+        toast({ title: "Sinkronisasi berhasil!" });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Gagal sinkronisasi",
+          description: result.error || "Terjadi kesalahan saat sinkronisasi"
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Gagal melakukan sinkronisasi"
+      });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -201,6 +227,15 @@ export default function Home() {
                   >
                     {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                     Salin ID
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleManualSync}
+                    disabled={isSyncing}
+                  >
+                    {isSyncing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Cloud className="h-3 w-3 mr-1" />}
+                    Sinkron
                   </Button>
                 </div>
 

@@ -48,13 +48,13 @@ export default function DiaperHistory({ diapers, onDelete }: DiaperHistoryProps)
     return (
         <>
             <ScrollArea className="h-[350px] rounded-md border">
-                <Table>
+                <Table className="min-w-[500px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Waktu</TableHead>
                             <TableHead>Jenis</TableHead>
                             <TableHead>Detail</TableHead>
-                            <TableHead className="text-center">Aksi</TableHead>
+                            <TableHead className="text-center w-[80px]">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

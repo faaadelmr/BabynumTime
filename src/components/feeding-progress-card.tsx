@@ -100,7 +100,7 @@ export default function FeedingProgressCard({
             >
                 {/* Front Side - Water Animation */}
                 <Card
-                    className="shadow-sm relative overflow-hidden backface-hidden"
+                    className="shadow-sm relative overflow-hidden backface-hidden h-full"
                     style={{ backfaceVisibility: 'hidden' }}
                 >
                     {/* Water fill container */}

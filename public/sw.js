@@ -1,4 +1,4 @@
-const CACHE_NAME = 'babynum-time-v3.4';
+const CACHE_NAME = 'babynum-time-v4.0';
 const urlsToCache = [
     '/',
     '/manifest.json',
@@ -33,7 +33,7 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event
 self.addEventListener('fetch', (event) => {
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
@@ -41,37 +41,64 @@ self.addEventListener('fetch', (event) => {
     // Skip chrome-extension and other non-http requests
     if (!event.request.url.startsWith('http')) return;
 
-    event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                // Return cached response if found
-                if (response) {
-                    return response;
-                }
-
-                // Clone the request
-                const fetchRequest = event.request.clone();
-
-                return fetch(fetchRequest).then((response) => {
+    // Strategy for Navigation (HTML): Network First
+    // This ensures the user always gets the latest version of the app shell (index.html)
+    // If network fails, it falls back to the cached version.
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
                     // Check if valid response
                     if (!response || response.status !== 200 || response.type !== 'basic') {
                         return response;
                     }
 
-                    // Clone the response
+                    // Update cache with new version
                     const responseToCache = response.clone();
-
-                    // Cache the fetched response
                     caches.open(CACHE_NAME)
                         .then((cache) => {
                             cache.put(event.request, responseToCache);
                         });
 
                     return response;
-                }).catch(() => {
-                    // Return offline page if network fails
-                    return caches.match('/');
-                });
+                })
+                .catch(() => {
+                    // Return cached page or offline page if network fails
+                    return caches.match(event.request)
+                        .then((response) => {
+                            return response || caches.match('/');
+                        });
+                })
+        );
+        return;
+    }
+
+    // Strategy for Assets (JS, CSS, Images): Stale-While-Revalidate
+    // Serve from cache immediately, then update cache in background
+    event.respondWith(
+        caches.match(event.request)
+            .then((cachedResponse) => {
+                // Fetch from network to update cache
+                const fetchPromise = fetch(event.request)
+                    .then((networkResponse) => {
+                        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+                            return networkResponse;
+                        }
+
+                        const responseToCache = networkResponse.clone();
+                        caches.open(CACHE_NAME)
+                            .then((cache) => {
+                                cache.put(event.request, responseToCache);
+                            });
+
+                        return networkResponse;
+                    })
+                    .catch(() => {
+                        // Network failed, nothing to update
+                    });
+
+                // Return cached response if available, otherwise wait for network
+                return cachedResponse || fetchPromise;
             })
     );
 });

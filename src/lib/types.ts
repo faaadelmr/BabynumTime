@@ -49,3 +49,13 @@ export interface PoopAIAnalysis {
   warning?: string; // peringatan jika ada yang tidak normal
   advice: string; // saran untuk orang tua
 }
+
+// Mother's Pumping Session
+export interface PumpingSession {
+  id: string;
+  time: string; // ISO string
+  volume: number; // in ml
+  duration?: number; // in minutes
+  side: 'left' | 'right' | 'both';
+  notes?: string;
+}

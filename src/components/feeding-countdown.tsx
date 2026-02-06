@@ -5,12 +5,14 @@ import { Clock, Bell, BellOff, BellRing } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface FeedingCountdownProps {
     nextFeedingTime: Date | null;
+    className?: string;
 }
 
-export default function FeedingCountdown({ nextFeedingTime }: FeedingCountdownProps) {
+export default function FeedingCountdown({ nextFeedingTime, className }: FeedingCountdownProps) {
     const { toast } = useToast();
     const [countdown, setCountdown] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
     const [notificationEnabled, setNotificationEnabled] = useState(false);
@@ -151,7 +153,7 @@ export default function FeedingCountdown({ nextFeedingTime }: FeedingCountdownPr
 
     if (!nextFeedingTime) {
         return (
-            <Card className="shadow-sm">
+            <Card className={cn("shadow-sm", className)}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Minum Berikutnya</CardTitle>
                     <Clock className="h-4 w-4 text-muted-foreground" />
@@ -165,7 +167,7 @@ export default function FeedingCountdown({ nextFeedingTime }: FeedingCountdownPr
     }
 
     return (
-        <Card className={`shadow-sm transition-colors ${isComplete ? "bg-primary/10 border-primary" : ""}`}>
+        <Card className={cn("shadow-sm transition-colors", isComplete && "bg-primary/10 border-primary", className)}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-1">
                     {isComplete && <BellRing className="h-4 w-4 text-primary animate-bounce" />}

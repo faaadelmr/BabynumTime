@@ -100,9 +100,18 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
   }, [pumpingSessions]);
 
   const addFeeding = (newFeeding: Omit<Feeding, "id" | "time"> & { time: Date }) => {
+    // Generate ID with format FD001, FD002, etc.
+    const maxId = feedings.reduce((max, f) => {
+      const match = f.id.match(/^FD(\d+)$/);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
+    const nextNum = maxId + 1;
+    const digits = Math.max(3, String(nextNum).length);
+    const newId = `FD${String(nextNum).padStart(digits, '0')}`;
+
     const feedingWithId: Feeding = {
       ...newFeeding,
-      id: new Date().toISOString() + Math.random(),
+      id: newId,
       time: newFeeding.time.toISOString(),
     };
     const updatedFeedings = [feedingWithId, ...feedings];
@@ -114,9 +123,18 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
   };
 
   const addCryAnalysis = (newAnalysis: { result: CryAnalysisResult, time: Date, detectedSound?: string }) => {
+    // Generate ID with format CR001, CR002, etc.
+    const maxId = cryAnalyses.reduce((max, c) => {
+      const match = c.id.match(/^CR(\d+)$/);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
+    const nextNum = maxId + 1;
+    const digits = Math.max(3, String(nextNum).length);
+    const newId = `CR${String(nextNum).padStart(digits, '0')}`;
+
     const analysisWithId: CryAnalysis = {
       ...newAnalysis,
-      id: new Date().toISOString() + Math.random(),
+      id: newId,
       time: newAnalysis.time.toISOString(),
       detectedSound: newAnalysis.detectedSound,
     };
@@ -129,9 +147,18 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
   };
 
   const addDiaper = (newDiaper: Omit<DiaperChange, "id" | "time"> & { time: Date }) => {
+    // Generate ID with format DP001, DP002, etc.
+    const maxId = diapers.reduce((max, d) => {
+      const match = d.id.match(/^DP(\d+)$/);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
+    const nextNum = maxId + 1;
+    const digits = Math.max(3, String(nextNum).length);
+    const newId = `DP${String(nextNum).padStart(digits, '0')}`;
+
     const diaperWithId: DiaperChange = {
       ...newDiaper,
-      id: new Date().toISOString() + Math.random(),
+      id: newId,
       time: newDiaper.time.toISOString(),
     };
     const updatedDiapers = [diaperWithId, ...diapers];
@@ -143,9 +170,18 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
   };
 
   const addPumpingSession = (newPumping: Omit<PumpingSession, "id" | "time"> & { time: Date }) => {
+    // Generate ID with format PM001, PM002, etc.
+    const maxId = pumpingSessions.reduce((max, p) => {
+      const match = p.id.match(/^PM(\d+)$/);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
+    const nextNum = maxId + 1;
+    const digits = Math.max(3, String(nextNum).length);
+    const newId = `PM${String(nextNum).padStart(digits, '0')}`;
+
     const pumpingWithId: PumpingSession = {
       ...newPumping,
-      id: new Date().toISOString() + Math.random(),
+      id: newId,
       time: newPumping.time.toISOString(),
     };
     const updatedSessions = [pumpingWithId, ...pumpingSessions];
@@ -233,7 +269,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
   const lastFeedingIcon = lastFeeding?.type === 'breast' ? Droplets : FlaskConical;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
@@ -253,7 +289,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
             className="h-full"
           />
         </motion.div>
-        
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -263,7 +299,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
         </motion.div>
 
         {/* Card 3: Feeding Progress (Flippable) */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -292,7 +328,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
             </div>
 
             {/* Back Side: Pumping Progress */}
-             <div
+            <div
               className="absolute inset-0 backface-hidden rotate-y-180 h-full"
               style={{
                 backfaceVisibility: 'hidden',
@@ -331,7 +367,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-1 perspective-1000">
-           <div
+          <div
             className={cn(
               "relative transition-transform duration-700 preserve-3d h-full",
               isActivityFlipped && "rotate-y-180"
@@ -344,7 +380,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
             {/* Front Side: Baby Activities */}
             <Card className="shadow-lg h-full backface-hidden relative z-10" style={{ backfaceVisibility: 'hidden' }}>
               <CardHeader>
-                 <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <CardTitle className="font-headline text-2xl">Catat Aktivitas Bayi</CardTitle>
                   <Button
                     variant="outline"
@@ -379,7 +415,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
             </Card>
 
             {/* Back Side: Mother Pumping */}
-             <Card
+            <Card
               className="shadow-lg h-full absolute inset-0 backface-hidden rotate-y-180 border-pink-200"
               style={{
                 backfaceVisibility: 'hidden',
@@ -402,7 +438,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
                 <CardDescription>Rekam aktivitas pumping ASI.</CardDescription>
               </CardHeader>
               <CardContent>
-                 <Tabs defaultValue="pumping">
+                <Tabs defaultValue="pumping">
                   <TabsList className="grid w-full grid-cols-1">
                     <TabsTrigger value="pumping" className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-900">Pumping ASI</TabsTrigger>
                   </TabsList>
@@ -415,7 +451,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
           </div>
         </div>
         <div className="lg:col-span-2 perspective-1000">
-           <div
+          <div
             className={cn(
               "relative transition-transform duration-700 preserve-3d h-full",
               isActivityFlipped && "rotate-y-180"
@@ -454,7 +490,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
             </Card>
 
             {/* Back Side: Mother History */}
-             <Card
+            <Card
               className="shadow-lg h-full absolute inset-0 backface-hidden rotate-y-180 border-pink-200"
               style={{
                 backfaceVisibility: 'hidden',
@@ -468,9 +504,9 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
                 <CardDescription>Catatan aktivitas pumping ASI Anda.</CardDescription>
               </CardHeader>
               <CardContent>
-                <PumpingHistory 
-                    sessions={sortedPumpingSessions} 
-                    onDelete={(id) => setItemToDelete({ type: 'pumping', id })} 
+                <PumpingHistory
+                  sessions={sortedPumpingSessions}
+                  onDelete={(id) => setItemToDelete({ type: 'pumping', id })}
                 />
               </CardContent>
             </Card>

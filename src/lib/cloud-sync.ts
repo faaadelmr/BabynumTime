@@ -1,10 +1,10 @@
-// Cloud sync service for Google Spreadsheet
+// Cloud sync service for Google Sheets API
 
-import type { Feeding, DiaperChange, CryAnalysis } from './types';
-import { getStorageConfig, setStorageConfig, type BabyInfo } from './storage-mode';
+import type { Feeding, DiaperChange, CryAnalysis, PumpingSession } from './types';
+import { getStorageConfig, type BabyInfo } from './storage-mode';
 
-// ⚠️ PENTING: Ganti URL ini dengan URL Web App dari Google Apps Script Anda
-const API_URL = 'https://script.google.com/macros/s/AKfycbzyjW-H5Bu-gI-SZvXTwk2go9cZgxDOnj2HUMPYK1mcw2rNtfvhkfezSwKj_5iPbX47MA/exec';
+// Internal API endpoint
+const API_URL = '/api/sheets';
 
 const SYNC_INTERVAL = 30 * 60 * 1000; // 30 minutes
 const LAST_SYNC_KEY = 'babynumtime-last-sync';
@@ -12,9 +12,9 @@ const PENDING_SYNC_KEY = 'babynumtime-pending-sync';
 
 let syncTimer: NodeJS.Timeout | null = null;
 
-// Check if API URL is configured
+// Check if API is configured (always true with internal API)
 export function isApiConfigured(): boolean {
-    return API_URL.startsWith('https://script.google.com');
+    return true;
 }
 
 // Mark that there are changes to sync
@@ -41,36 +41,24 @@ export function getLastSyncTime(): Date | null {
 
 // Create a new baby in cloud
 export async function createBabyInCloud(birthDate: string, babyName?: string): Promise<{ success: boolean; babyId?: string; error?: string }> {
-    if (!isApiConfigured()) {
-        return { success: false, error: 'API URL not configured' };
-    }
-
     try {
-        // Use URL params to avoid CORS preflight
-        const params = new URLSearchParams({
-            action: 'createBaby',
-            birthDate,
-            babyName: babyName || '',
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'createBaby',
+                birthDate,
+                babyName: babyName || '',
+            }),
         });
 
-        const response = await fetch(`${API_URL}?${params.toString()}`, {
-            method: 'GET',
-            redirect: 'follow',
-        });
-
-        const raw = await response.text();
-        let result: any;
-        try {
-            result = JSON.parse(raw);
-        } catch {
-            return { success: false, error: 'Respons server tidak valid. Periksa URL Web App.' };
-        }
+        const result = await response.json();
 
         if (result.success && result.baby) {
             return { success: true, babyId: result.baby.babyId };
         }
 
-        return { success: false, error: result.error || 'Failed to create baby' };
+        return { success: false, error: result.error || 'Gagal membuat baby' };
     } catch (error) {
         console.error('Error creating baby:', error);
         return { success: false, error: 'Network error. Pastikan terhubung ke internet.' };
@@ -79,19 +67,17 @@ export async function createBabyInCloud(birthDate: string, babyName?: string): P
 
 // Get baby info from cloud
 export async function getBabyFromCloud(babyId: string): Promise<{ success: boolean; baby?: BabyInfo; error?: string }> {
-    if (!isApiConfigured()) {
-        return { success: false, error: 'API URL not configured' };
-    }
-
     try {
-        const response = await fetch(`${API_URL}?action=getBaby&babyId=${encodeURIComponent(babyId)}`);
-        const raw = await response.text();
-        let result: any;
-        try {
-            result = JSON.parse(raw);
-        } catch {
-            return { success: false, error: 'Respons server tidak valid saat mengambil data bayi.' };
-        }
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'getBaby',
+                babyId,
+            }),
+        });
+
+        const result = await response.json();
 
         if (result.success && result.baby) {
             return {
@@ -105,7 +91,7 @@ export async function getBabyFromCloud(babyId: string): Promise<{ success: boole
             };
         }
 
-        return { success: false, error: result.error || 'Baby not found' };
+        return { success: false, error: result.error || 'Baby tidak ditemukan' };
     } catch (error) {
         console.error('Error getting baby:', error);
         return { success: false, error: 'Network error' };
@@ -115,28 +101,26 @@ export async function getBabyFromCloud(babyId: string): Promise<{ success: boole
 // Get all data from cloud
 export async function getDataFromCloud(babyId: string): Promise<{
     success: boolean;
-    data?: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] };
+    data?: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[]; pumpingSessions: PumpingSession[] };
     error?: string;
 }> {
-    if (!isApiConfigured()) {
-        return { success: false, error: 'API URL not configured' };
-    }
-
     try {
-        const response = await fetch(`${API_URL}?action=getData&babyId=${encodeURIComponent(babyId)}`);
-        const raw = await response.text();
-        let result: any;
-        try {
-            result = JSON.parse(raw);
-        } catch {
-            return { success: false, error: 'Respons server tidak valid saat mengambil data.' };
-        }
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'getData',
+                babyId,
+            }),
+        });
+
+        const result = await response.json();
 
         if (result.success && result.data) {
             return { success: true, data: result.data };
         }
 
-        return { success: false, error: result.error || 'Failed to get data' };
+        return { success: false, error: result.error || 'Gagal mengambil data' };
     } catch (error) {
         console.error('Error getting data:', error);
         return { success: false, error: 'Network error' };
@@ -146,32 +130,20 @@ export async function getDataFromCloud(babyId: string): Promise<{
 // Sync data to cloud
 export async function syncToCloud(
     babyId: string,
-    data: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] }
+    data: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[]; pumpingSessions?: PumpingSession[] }
 ): Promise<{ success: boolean; error?: string }> {
-    if (!isApiConfigured()) {
-        return { success: false, error: 'API URL not configured' };
-    }
-
     try {
-        // Use URL params with encoded JSON data to avoid CORS preflight
-        const params = new URLSearchParams({
-            action: 'syncData',
-            babyId,
-            data: JSON.stringify(data),
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'syncData',
+                babyId,
+                data,
+            }),
         });
 
-        const response = await fetch(`${API_URL}?${params.toString()}`, {
-            method: 'GET',
-            redirect: 'follow',
-        });
-
-        const raw = await response.text();
-        let result: any;
-        try {
-            result = JSON.parse(raw);
-        } catch {
-            return { success: false, error: 'Respons server tidak valid saat sinkronisasi.' };
-        }
+        const result = await response.json();
 
         if (result.success) {
             localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
@@ -179,7 +151,7 @@ export async function syncToCloud(
             return { success: true };
         }
 
-        return { success: false, error: result.error || 'Sync failed' };
+        return { success: false, error: result.error || 'Sinkronisasi gagal' };
     } catch (error) {
         console.error('Error syncing:', error);
         return { success: false, error: 'Network error' };
@@ -188,8 +160,8 @@ export async function syncToCloud(
 
 // Manual full sync (push and pull)
 export async function triggerFullSync(
-    getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] },
-    onDataReceived?: (data: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] }) => void
+    getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[]; pumpingSessions: PumpingSession[] },
+    onDataReceived?: (data: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[]; pumpingSessions: PumpingSession[] }) => void
 ): Promise<{ success: boolean; error?: string }> {
     const config = getStorageConfig();
     if (!config || config.storageMode !== 'cloud' || !config.babyId) {
@@ -210,7 +182,8 @@ export async function triggerFullSync(
         localStorage.setItem('babyCareFeedings', JSON.stringify(pullResult.data.feedings));
         localStorage.setItem('babyCareDiapers', JSON.stringify(pullResult.data.diapers));
         localStorage.setItem('babyCareCryAnalyses', JSON.stringify(pullResult.data.cryAnalyses));
-        
+        localStorage.setItem('motherPumpingSessions', JSON.stringify(pullResult.data.pumpingSessions || []));
+
         onDataReceived?.(pullResult.data);
     }
 
@@ -219,9 +192,9 @@ export async function triggerFullSync(
 
 // Start auto-sync timer
 export function startAutoSync(
-    getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] },
+    getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[]; pumpingSessions: PumpingSession[] },
     onSyncComplete?: (success: boolean) => void,
-    onDataReceived?: (data: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] }) => void
+    onDataReceived?: (data: { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[]; pumpingSessions: PumpingSession[] }) => void
 ): void {
     if (syncTimer) {
         clearInterval(syncTimer);
@@ -257,7 +230,8 @@ export function startAutoSync(
                 localStorage.setItem('babyCareFeedings', JSON.stringify(pullResult.data.feedings));
                 localStorage.setItem('babyCareDiapers', JSON.stringify(pullResult.data.diapers));
                 localStorage.setItem('babyCareCryAnalyses', JSON.stringify(pullResult.data.cryAnalyses));
-                
+                localStorage.setItem('motherPumpingSessions', JSON.stringify(pullResult.data.pumpingSessions || []));
+
                 // Notify UI
                 onDataReceived?.(pullResult.data);
             }
@@ -280,7 +254,7 @@ export function stopAutoSync(): void {
 
 // Manual sync now
 export async function syncNow(
-    getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[] }
+    getData: () => { feedings: Feeding[]; diapers: DiaperChange[]; cryAnalyses: CryAnalysis[]; pumpingSessions: PumpingSession[] }
 ): Promise<{ success: boolean; error?: string }> {
     const config = getStorageConfig();
     if (!config || config.storageMode !== 'cloud' || !config.babyId) {
@@ -299,42 +273,31 @@ export async function sendDataToCloud(): Promise<{ success: boolean; error?: str
         return { success: false, error: 'Not in cloud mode' };
     }
 
-    if (!isApiConfigured()) {
-        return { success: false, error: 'API URL not configured' };
-    }
-
     try {
         // Get all data from localStorage
         const feedingsStr = localStorage.getItem('babyCareFeedings');
         const diapersStr = localStorage.getItem('babyCareDiapers');
         const cryAnalysesStr = localStorage.getItem('babyCareCryAnalyses');
+        const pumpingStr = localStorage.getItem('motherPumpingSessions');
 
         const data = {
             feedings: feedingsStr ? JSON.parse(feedingsStr) : [],
             diapers: diapersStr ? JSON.parse(diapersStr) : [],
             cryAnalyses: cryAnalysesStr ? JSON.parse(cryAnalysesStr) : [],
+            pumpingSessions: pumpingStr ? JSON.parse(pumpingStr) : [],
         };
 
-        // Use URL params with encoded JSON data
-        const params = new URLSearchParams({
-            action: 'syncData',
-            babyId: config.babyId,
-            data: JSON.stringify(data),
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'syncData',
+                babyId: config.babyId,
+                data,
+            }),
         });
 
-        const response = await fetch(`${API_URL}?${params.toString()}`, {
-            method: 'GET',
-            redirect: 'follow',
-        });
-
-        const raw = await response.text();
-        let result: any;
-        try {
-            result = JSON.parse(raw);
-        } catch {
-            markPendingSync();
-            return { success: false, error: 'Respons server tidak valid saat mengirim data.' };
-        }
+        const result = await response.json();
 
         if (result.success) {
             localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
@@ -343,7 +306,7 @@ export async function sendDataToCloud(): Promise<{ success: boolean; error?: str
         }
 
         markPendingSync();
-        return { success: false, error: result.error || 'Sync failed' };
+        return { success: false, error: result.error || 'Sinkronisasi gagal' };
     } catch (error) {
         console.error('Error sending data to cloud:', error);
         markPendingSync();

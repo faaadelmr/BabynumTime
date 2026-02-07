@@ -25,13 +25,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Trash2, Cloud, Loader2, Copy, Check } from "lucide-react";
+import { Trash2, Cloud, Loader2, Copy, Check, Download, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { getStorageConfig, setStorageConfig, clearStorageConfig, type BabyInfo } from "@/lib/storage-mode";
 import { startAutoSync, stopAutoSync, syncNow, syncToCloud, getLastSyncTime, markPendingSync, getDataFromCloud, createBabyInCloud, isApiConfigured, triggerFullSync } from "@/lib/cloud-sync";
 import { useToast } from "@/hooks/use-toast";
-import type { Feeding, DiaperChange, CryAnalysis } from "@/lib/types";
+import type { Feeding, DiaperChange, CryAnalysis, PumpingSession } from "@/lib/types";
 
 export default function Home() {
   const { toast } = useToast();
@@ -46,6 +46,8 @@ export default function Home() {
   const [showUpgradeToCloud, setShowUpgradeToCloud] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [newBabyId, setNewBabyId] = useState<string | null>(null);
+  const [showDeleteCloudConfirm, setShowDeleteCloudConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Callback when data is received from cloud
   const handleDataReceived = useCallback((data: any) => {
@@ -58,7 +60,8 @@ export default function Home() {
     const feedings = JSON.parse(localStorage.getItem("babyCareFeedings") || "[]") as Feeding[];
     const diapers = JSON.parse(localStorage.getItem("babyCareDiapers") || "[]") as DiaperChange[];
     const cryAnalyses = JSON.parse(localStorage.getItem("babyCareCryAnalyses") || "[]") as CryAnalysis[];
-    return { feedings, diapers, cryAnalyses };
+    const pumpingSessions = JSON.parse(localStorage.getItem("motherPumpingSessions") || "[]") as PumpingSession[];
+    return { feedings, diapers, cryAnalyses, pumpingSessions };
   }, []);
 
   useEffect(() => {
@@ -156,7 +159,86 @@ export default function Home() {
     localStorage.removeItem("babyCareCryAnalyses");
     localStorage.removeItem("babynumtime-last-sync");
     localStorage.removeItem("babynumtime-pending-sync");
+    localStorage.removeItem("motherPumpingSessions");
     window.location.reload();
+  };
+
+  // Export data as JSON file
+  const handleExportData = () => {
+    const exportData = {
+      version: 1,
+      exportDate: new Date().toISOString(),
+      config: config,
+      feedings: JSON.parse(localStorage.getItem("babyCareFeedings") || "[]"),
+      diapers: JSON.parse(localStorage.getItem("babyCareDiapers") || "[]"),
+      cryAnalyses: JSON.parse(localStorage.getItem("babyCareCryAnalyses") || "[]"),
+      pumpingSessions: JSON.parse(localStorage.getItem("motherPumpingSessions") || "[]"),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `babynumtime-backup-${format(new Date(), "yyyy-MM-dd")}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Data berhasil diekspor!" });
+  };
+
+  // Import data from JSON file
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importData = JSON.parse(e.target?.result as string);
+
+        // Validate import data
+        if (!importData.version || !importData.config) {
+          toast({ variant: "destructive", title: "File tidak valid" });
+          return;
+        }
+
+        // Import config - ALWAYS set to offline mode (user can upgrade to cloud later)
+        const importedConfig: BabyInfo = {
+          birthDate: importData.config.birthDate,
+          babyName: importData.config.babyName,
+          storageMode: 'offline', // Always import as offline
+          // Do not import babyId - user should create new or join existing cloud later
+        };
+        setStorageConfig(importedConfig);
+        setConfig(importedConfig);
+
+        // Import data
+        if (importData.feedings) {
+          localStorage.setItem("babyCareFeedings", JSON.stringify(importData.feedings));
+        }
+        if (importData.diapers) {
+          localStorage.setItem("babyCareDiapers", JSON.stringify(importData.diapers));
+        }
+        if (importData.cryAnalyses) {
+          localStorage.setItem("babyCareCryAnalyses", JSON.stringify(importData.cryAnalyses));
+        }
+        if (importData.pumpingSessions) {
+          localStorage.setItem("motherPumpingSessions", JSON.stringify(importData.pumpingSessions));
+        }
+
+        toast({ title: "Data berhasil diimpor!" });
+        setShowEditBirthDate(false);
+        window.location.reload();
+      } catch {
+        toast({ variant: "destructive", title: "Gagal membaca file" });
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset input
+    event.target.value = "";
   };
 
 
@@ -166,6 +248,37 @@ export default function Home() {
       setCopied(true);
       toast({ title: "ID disalin!" });
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Delete all cloud data for privacy
+  const handleDeleteCloudData = async () => {
+    if (!config?.babyId) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch('/api/sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'deleteAllData',
+          babyId: config.babyId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({ title: "Data cloud berhasil dihapus!" });
+        setShowDeleteCloudConfirm(false);
+        handleResetApp();
+      } else {
+        toast({ variant: "destructive", title: "Gagal menghapus data", description: result.error });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Terjadi kesalahan jaringan" });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -239,6 +352,28 @@ export default function Home() {
                   </Button>
                 </div>
 
+                {/* Export & Delete buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={handleExportData}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Export
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setShowDeleteCloudConfirm(true)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Hapus Data Cloud
+                  </Button>
+                </div>
+
                 {lastSync && (
                   <p className="text-xs text-muted-foreground">
                     Terakhir sinkron: {format(lastSync, "HH:mm, d MMM")}
@@ -253,6 +388,39 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground">
                   📱 Mode Offline - Data tersimpan di perangkat ini saja.
                 </p>
+
+                {/* Export/Import buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={handleExportData}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                  <label className="flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      asChild
+                    >
+                      <span>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Import
+                      </span>
+                    </Button>
+                    <input
+                      type="file"
+                      accept=".json"
+                      className="hidden"
+                      onChange={handleImportData}
+                    />
+                  </label>
+                </div>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -309,6 +477,43 @@ export default function Home() {
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={handleResetApp}>Ya, Atur Ulang</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Cloud Data Confirmation */}
+      <AlertDialog open={showDeleteCloudConfirm} onOpenChange={setShowDeleteCloudConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>🗑️ Hapus Semua Data dari Cloud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>Peringatan:</strong> Tindakan ini akan menghapus SEMUA data bayi Anda dari server cloud secara permanen, termasuk:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Riwayat minum/feeding</li>
+                <li>Riwayat ganti popok</li>
+                <li>Analisis tangisan</li>
+                <li>Catatan bunda (pumping)</li>
+                <li>Informasi bayi</li>
+              </ul>
+              <p className="mt-2 font-medium">Data yang sudah dihapus tidak dapat dikembalikan!</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCloudData}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                "Ya, Hapus Permanen"
+              )}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

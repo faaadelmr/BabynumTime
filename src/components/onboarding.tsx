@@ -124,6 +124,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 if (dataResult.data.cryAnalyses && dataResult.data.cryAnalyses.length > 0) {
                     localStorage.setItem("babyCareCryAnalyses", JSON.stringify(dataResult.data.cryAnalyses));
                 }
+                if (dataResult.data.pumpingSessions && dataResult.data.pumpingSessions.length > 0) {
+                    localStorage.setItem("motherPumpingSessions", JSON.stringify(dataResult.data.pumpingSessions));
+                }
                 toast({
                     title: 'Berhasil terhubung!',
                     description: `Data berhasil dimuat: ${dataResult.data.feedings?.length || 0} minum, ${dataResult.data.diapers?.length || 0} popok`

@@ -108,13 +108,7 @@ export default function PumpingProgressCard({
                         {isClient && (
                             <div className="space-y-1 mt-1">
                                  <p className="text-xs text-muted-foreground">
-                                    Total Hari Ini ({todaySessions.length} sesi)
-                                </p>
-                                {lastSession && (
-                                    <p className="text-[10px] text-pink-600 font-medium pt-1 border-t border-pink-100 mt-2">
-                                        Terakhir: {format(new Date(lastSession.time), "HH:mm", { locale: id })} ({lastSession.volume} ml)
-                                    </p>
-                                )}
+                                    Total Hari Ini ({todaySessions.length} sesi)</p>
                                 <p className="text-[10px] text-muted-foreground mt-1">Tap untuk grafik →</p>
                             </div>
                         )}

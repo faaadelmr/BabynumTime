@@ -4,7 +4,10 @@ import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { format, formatDistanceToNowStrict, isToday, subDays, isAfter } from "date-fns";
 import { id } from 'date-fns/locale';
-import { Clock, Baby, Shirt, Droplets, FlaskConical, History, RotateCcw, Milk, User as MomIcon } from "lucide-react";
+import { Clock, Baby, Droplets, FlaskConical, History, RotateCcw, Milk, User as MomIcon, Icon } from "lucide-react";
+import type { LucideProps } from "lucide-react";
+import { diaper, bottleBaby } from "@lucide/lab";
+
 import type { Feeding, CryAnalysis, CryAnalysisResult, DiaperChange, PumpingSession } from "@/lib/types";
 import {
   getAge,
@@ -266,7 +269,9 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
   const weeklyPoopReco = getWeeklyPoopRecommendation(ageInMonths);
 
   const lastFeeding = sortedFeedings[0];
-  const lastFeedingIcon = lastFeeding?.type === 'breast' ? Droplets : FlaskConical;
+  const BottleBabyIcon = (props: LucideProps) => <Icon iconNode={bottleBaby} {...props} />;
+  const lastFeedingIcon = lastFeeding?.type === 'breast' ? BottleBabyIcon : Droplets;
+  const DiaperIcon = (props: LucideProps) => <Icon iconNode={diaper} {...props} />;
 
   return (
     <motion.div
@@ -352,7 +357,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
           transition={{ delay: 0.4 }}
         >
           <DiaperProgressCard
-            icon={Shirt}
+            icon={DiaperIcon}
             title="Popok Hari Ini"
             diapers={sortedDiapers}
             isClient={isClient}
@@ -389,7 +394,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
                     onClick={() => setIsActivityFlipped(true)}
                   >
                     Mode Bunda
-                    <MomIcon className="ml-2 h-3 w-3" />
+                    👩🏻‍🍼
                   </Button>
                 </div>
                 <CardDescription>Rekam sesi pemberian minum, popok, atau analisis tangisan.</CardDescription>
@@ -432,7 +437,7 @@ export default function Dashboard({ birthDate, onDataChange, lastSync }: Dashboa
                     onClick={() => setIsActivityFlipped(false)}
                   >
                     Mode Bayi
-                    <Baby className="ml-2 h-3 w-3" />
+                    👶🏻
                   </Button>
                 </div>
                 <CardDescription>Rekam aktivitas pumping ASI.</CardDescription>
